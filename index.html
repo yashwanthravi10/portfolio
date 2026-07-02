@@ -1872,6 +1872,9 @@
   const aiLaunch=document.getElementById('aiLaunch'), aiChat=document.getElementById('aiChat'), aiClose=document.getElementById('aiClose'),
         aiBody=document.getElementById('aiBody'), aiForm=document.getElementById('aiForm'), aiText=document.getElementById('aiText'), aiSuggestBox=document.getElementById('aiSuggest');
   let aiGreeted=false;
+  let aiHistory=[];
+  // set to your deployed function path; leave as '/api/chat' for Vercel
+  const AI_ENDPOINT='/api/chat';
 
   function aiScore(q){
     const stem = w => (w.endsWith('s') && w.length>3) ? w.slice(0,-1) : w;
@@ -1888,14 +1891,37 @@
     }
     return bestScore>=2 ? best.a : AI_FALLBACK;
   }
+  function aiRenderLLM(text){
+    let s=escapeHtml(text);
+    s=s.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+    s=s.replace(/\[(.+?)\]\((https?:[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+    s=s.replace(/\n{2,}/g,'<br><br>').replace(/\n/g,'<br>');
+    return s;
+  }
   function aiAdd(text, who){
     const d=document.createElement('div'); d.className='ai-msg '+who; d.innerHTML=text; aiBody.appendChild(d); aiBody.scrollTop=aiBody.scrollHeight; return d;
   }
   function aiTyping(){ const d=document.createElement('div'); d.className='ai-typing'; d.innerHTML='<i></i><i></i><i></i>'; aiBody.appendChild(d); aiBody.scrollTop=aiBody.scrollHeight; return d; }
-  function aiRespond(q){
+  async function aiRespond(q){
     const t=aiTyping();
-    const ans=aiScore(q);
-    setTimeout(()=>{ t.remove(); aiAdd(ans,'bot'); }, 480+Math.random()*380);
+    let html=null;
+    // 1) try the real LLM backend (if one is deployed)
+    try{
+      const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(), 12000);
+      const r=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({message:q, history:aiHistory}), signal:ctrl.signal});
+      clearTimeout(to);
+      if(r.ok){ const j=await r.json(); if(j && j.reply){ html=aiRenderLLM(j.reply); } }
+    }catch(_){ /* no backend / offline → fall back */ }
+    // 2) fall back to the built-in knowledge base
+    if(!html){ html=aiScore(q); }
+    const wait = html ? 260+Math.random()*260 : 0;
+    setTimeout(()=>{
+      t.remove(); aiAdd(html,'bot');
+      aiHistory.push({role:'user',content:q});
+      aiHistory.push({role:'assistant',content: html.replace(/<[^>]+>/g,'').slice(0,600)});
+      if(aiHistory.length>8) aiHistory=aiHistory.slice(-8);
+    }, wait);
   }
   function aiRenderSuggest(){
     aiSuggestBox.innerHTML='';
