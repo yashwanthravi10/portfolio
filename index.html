@@ -75,19 +75,20 @@
     transition: border-color .3s, background .3s;
   }
   header.nav.scrolled { border-bottom: 1px solid var(--line); }
-  .nav-inner { max-width: var(--maxw); margin: 0 auto; padding: 16px 28px;
-    display: flex; align-items: center; justify-content: space-between; gap: 20px; }
-  .brand { font-family:'Archivo'; font-weight: 900; font-size: 16px; letter-spacing: -.02em;
+  .nav-inner { max-width: 1340px; margin: 0 auto; padding: 15px 30px;
+    display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+  .brand { font-family:'Archivo'; font-weight: 900; font-size: 17px; letter-spacing: -.02em;
     text-transform: uppercase; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
   .brand .dot { color: var(--accent); }
-  .nav-links { display: flex; align-items: center; gap: 4px; }
+  .nav-links { display: flex; align-items: center; gap: 3px; }
   .nav-links a {
-    font-size: 12px; color: var(--muted); padding: 7px 8px; border-radius: 8px;
+    font-size: 13.5px; font-weight: 500; color: var(--muted); padding: 9px 12px; border-radius: 9px;
     display: inline-flex; gap: 6px; align-items: baseline; transition: color .2s, background .2s; white-space: nowrap;
   }
   .nav-links a .num { font-family:'Space Mono',monospace; font-size: 10px; color: var(--muted-2); }
-  .nav-links a:hover, .nav-links a.active { color: var(--text); background: var(--surface-2); }
-  .nav-links a:hover .num, .nav-links a.active .num { color: var(--accent); }
+  .nav-links a:hover { color: var(--text); background: var(--surface-2); }
+  .nav-links a.active { color: var(--accent-ink); background: var(--accent); font-weight: 600; }
+  .nav-links a:hover .num { color: var(--accent); }
   .nav-right { display: flex; align-items: center; gap: 12px; }
   .theme-btn {
     width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--line);
@@ -202,6 +203,41 @@
     display: inline-flex; align-items: center; gap: 44px; }
   .strip-item b { color: var(--text); }
   .strip-item::after { content: "✦"; color: var(--accent); }
+
+  /* ============ HOME SECTIONS ============ */
+  .home-section { padding-top: 90px; }
+  .home-head { margin-bottom: 32px; }
+  .home-h2 { font-family:'Archivo'; font-weight: 900; letter-spacing: -.03em; line-height: 1.02;
+    font-size: clamp(30px,4.5vw,52px); margin-top: 14px; }
+  .home-h2 .hl { color: var(--accent); }
+  .home-sub { color: var(--muted); font-size: 17px; max-width: 640px; margin-top: 16px; line-height: 1.6; }
+  .home-focus { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; }
+  .focus-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 28px; transition: transform .3s var(--ease), border-color .3s; }
+  .focus-card:hover { transform: translateY(-5px); border-color: color-mix(in srgb,var(--accent) 45%,var(--line)); }
+  .focus-ic { width: 46px; height: 46px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line);
+    display: grid; place-items: center; font-size: 20px; color: var(--accent); margin-bottom: 18px; }
+  .focus-card h3 { font-family:'Archivo'; font-weight: 800; font-size: 19px; letter-spacing: -.01em; margin-bottom: 10px; }
+  .focus-card p { color: var(--muted); font-size: 14.5px; line-height: 1.6; }
+  .home-hub { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+  .hub-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 24px; display: flex; flex-direction: column; gap: 8px; color: var(--text); text-decoration: none;
+    transition: transform .3s var(--ease), border-color .3s, background .3s; position: relative; }
+  .hub-card:hover { transform: translateY(-5px); border-color: color-mix(in srgb,var(--accent) 55%,var(--line)); background: var(--surface-2); }
+  .hub-k { font-family:'Space Mono',monospace; font-size: 11px; color: var(--accent); }
+  .hub-card h3 { font-family:'Archivo'; font-weight: 800; font-size: 20px; letter-spacing: -.01em; }
+  .hub-card p { color: var(--muted); font-size: 13.5px; line-height: 1.5; flex: 1; }
+  .hub-go { font-family:'Space Mono',monospace; font-size: 12px; color: var(--muted-2); transition: color .2s; margin-top: 6px; }
+  .hub-card:hover .hub-go { color: var(--accent); }
+  .home-cta { margin-top: 90px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
+    padding: clamp(28px,4vw,44px); display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap;
+    position: relative; overflow: hidden; }
+  .home-cta::before { content: ""; position: absolute; inset: 0;
+    background: radial-gradient(70% 140% at 100% 0%, color-mix(in srgb,var(--accent) 12%,transparent), transparent 55%); }
+  .home-cta > * { position: relative; }
+  .home-cta h3 { font-family:'Archivo'; font-weight: 800; font-size: clamp(20px,2.6vw,26px); letter-spacing: -.02em; }
+  .home-cta p { color: var(--muted); font-size: 15px; margin-top: 6px; }
+  .home-cta-btns { display: flex; gap: 12px; flex-wrap: wrap; }
 
   /* ============ ABOUT ============ */
   .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: start; }
@@ -346,7 +382,7 @@
   .ai-model p { color: var(--muted); font-size: 13px; line-height: 1.5; }
 
   .ai-metrics { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
-  .ai-metric { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+  .ai-metric { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; min-width: 0; }
   .am-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
   .am-head h5 { font-family:'Archivo'; font-weight: 800; font-size: 17px; }
   .am-res { font-family:'Space Mono',monospace; font-size: 12px; color: var(--accent-ink); background: var(--accent);
@@ -485,10 +521,13 @@
   .foot-inner .up:hover { color: var(--accent); }
 
   /* ============ RESPONSIVE ============ */
-  @media (max-width: 900px) {
+  /* switch to hamburger earlier so tabs never get cramped */
+  @media (max-width: 1220px) {
     .nav-links { display: none; }
     .hamburger { display: grid; place-items: center; }
     .nav-right .cta-btn.hire { display: none; }
+  }
+  @media (max-width: 900px) {
     .hero-grid { grid-template-columns: 1fr; gap: 36px; }
     .portrait { max-width: 320px; }
     .about-grid { grid-template-columns: 1fr; gap: 30px; }
@@ -499,23 +538,35 @@
     .ai-metrics { grid-template-columns: repeat(2,1fr); }
     .cert-featured { grid-template-columns: 1fr; }
     .cert-ll-grid { grid-template-columns: repeat(2,1fr); }
+    .ec-stats { grid-template-columns: repeat(2,1fr); }
+    .home-focus, .home-hub { grid-template-columns: 1fr; }
     .xp { grid-template-columns: 1fr; gap: 16px; }
     section { padding: 80px 0; }
+    .hero { padding: 120px 0 70px; }
   }
   @media (max-width: 560px) {
+    .wrap { padding: 0 20px; }
     .proj-grid { grid-template-columns: 1fr; }
-    .hero-stats { gap: 24px; }
-    .hstat .n { font-size: 32px; }
+    .hero { padding: 108px 0 60px; }
+    .hero-stats { gap: 20px 28px; }
+    .hstat .n { font-size: 30px; }
+    .hero-cta { gap: 10px; }
+    .hero-cta .cta-btn { flex: 1; justify-content: center; min-width: 130px; }
     .cert-ll-grid { grid-template-columns: 1fr; }
     .ai-models { grid-template-columns: 1fr; }
     .ai-metrics { grid-template-columns: 1fr; }
+    .am-formula { white-space: normal; }
+    .ec-stats { grid-template-columns: 1fr; }
+    .ec-gallery { grid-template-columns: 1fr; gap: 12px; }
+    .ec-photo img { aspect-ratio: 4/3; }
     .flow-arrow { transform: rotate(90deg); width: 100%; justify-content: center; }
     .flow-step { min-width: 0; }
-    .tl-item { grid-template-columns: 60px 1fr; gap: 14px; }
-    .tl-year { font-size: 19px; }
+    .tl-item { grid-template-columns: 54px 1fr; gap: 12px; }
+    .tl-year { font-size: 18px; }
     .m-metrics { grid-template-columns: 1fr; }
     .modal-content { padding: 24px 20px 26px; }
     .m-foot .row { grid-template-columns: 1fr; gap: 2px; }
+    .sec-title { font-size: clamp(34px,11vw,52px); }
   }
 </style>
 </head>
@@ -627,6 +678,60 @@
       <span class="strip-item"><b>2</b> production AI systems</span>
       <span class="strip-item"><b>−40%</b> manual effort</span>
       <span class="strip-item"><b>4</b> countries</span>
+    </div>
+  </div>
+
+  <!-- HOME · what I do -->
+  <div class="wrap home-section">
+    <div class="home-head reveal">
+      <span class="eyebrow">What I do</span>
+      <h2 class="home-h2">A PM who ships <span class="hl">measurable outcomes</span>.</h2>
+      <p class="home-sub">Seven years turning ambiguous problems into shipped products across consumer growth, enterprise platforms, and AI — currently Senior Product Manager at SimStar (Stargems Group).</p>
+    </div>
+    <div class="home-focus">
+      <div class="focus-card reveal">
+        <div class="focus-ic">↗</div>
+        <h3>Growth &amp; Customer Acquisition</h3>
+        <p>Scaled a consumer vertical 0→1 to 20M+ monthly users with rigorous A/B testing, checkout CRO, and unit-economics thinking.</p>
+      </div>
+      <div class="focus-card reveal">
+        <div class="focus-ic">✦</div>
+        <h3>AI &amp; ML Products</h3>
+        <p>Shipped two production AI systems — a predictive ML pricing engine and an LLM + RAG assistant with human hand-off.</p>
+      </div>
+      <div class="focus-card reveal">
+        <div class="focus-ic">◆</div>
+        <h3>0→1 &amp; Enterprise Platforms</h3>
+        <p>Built a nine-product, four-country enterprise platform from scratch — cutting manual effort by ~40%.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOME · explore hub -->
+  <div class="wrap home-section">
+    <div class="home-head reveal">
+      <span class="eyebrow">Explore</span>
+      <h2 class="home-h2">Take a closer look.</h2>
+    </div>
+    <div class="home-hub">
+      <a href="#experience" class="hub-card reveal"><span class="hub-k">01</span><h3>Experience</h3><p>SimStar &amp; Magicbricks — the roles and the wins.</p><span class="hub-go">Open →</span></a>
+      <a href="#projects" class="hub-card reveal"><span class="hub-k">02</span><h3>Projects</h3><p>12 products &amp; outcomes, with the metrics behind each.</p><span class="hub-go">Open →</span></a>
+      <a href="#ai" class="hub-card reveal"><span class="hub-k">03</span><h3>AI / ML</h3><p>Models, evaluation metrics, and what I've learned.</p><span class="hub-go">Open →</span></a>
+      <a href="#extra" class="hub-card reveal"><span class="hub-k">04</span><h3>Beyond Work</h3><p>Defence (SSB), football, and community service.</p><span class="hub-go">Open →</span></a>
+    </div>
+  </div>
+
+  <!-- HOME · CTA -->
+  <div class="wrap">
+    <div class="home-cta reveal">
+      <div>
+        <h3>Have a product problem worth solving?</h3>
+        <p>I'm open to senior product roles and interesting conversations.</p>
+      </div>
+      <div class="home-cta-btns">
+        <a href="#contact" class="cta-btn">Get in touch →</a>
+        <a href="Yashwanth_Ravi_Resume.pdf" download class="cta-btn cta-ghost">Résumé</a>
+      </div>
     </div>
   </div>
 </section>
@@ -1016,7 +1121,7 @@
         </div>
         <h3>Post Graduate Diploma in Management</h3>
         <div class="inst">Indian Institute of Management (IIM), Rohtak — strategy, marketing &amp; analytics</div>
-        <div class="yr"><span>PGDM</span><span>CGPA <b>5.56/10</b></span></div>
+        <div class="yr"><span>2022 — 2024</span><span>CGPA <b>5.56/10</b></span></div>
       </div>
       <div class="edu reveal">
         <div class="edu-head">
