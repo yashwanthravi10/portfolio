@@ -1,17 +1,26 @@
 // ============================================================================
-//  /api/chat.js   —   LLM backend for Yashwanth's portfolio chatbot
-//  Runs as a Vercel Serverless Function (Node.js).
+//  /api/chat.js   —   LLM backend for "Yashwanth's AI" (portfolio chatbot)
+//  Vercel Serverless Function (Node.js).
+//
+//  PROVIDERS (first one with a key configured wins):
+//    1. Google Gemini   — env var GEMINI_API_KEY   (free: https://aistudio.google.com/apikey)
+//    2. Groq            — env var GROQ_API_KEY     (free: https://console.groq.com/keys)
 //
 //  SETUP:
-//   1. Get a free Groq API key (no credit card): https://console.groq.com/keys
-//   2. In Vercel → Settings → Environment Variables, add:
-//          Name:  GROQ_API_KEY       Value: <your key>
-//      Tick ALL environments (Production, Preview, Development), then REDEPLOY.
-//      Env vars are only picked up by deployments created after they are added.
+//    Vercel → Settings → Environment Variables → add the key, tick ALL
+//    environments (Production, Preview, Development) → then REDEPLOY.
+//    Existing deployments do NOT pick up newly added variables.
 //
 //  DIAGNOSTICS:
-//   Open  /api/chat?health=1  in a browser. It reports whether the key is
-//   present and what Groq actually replies, without ever exposing the key.
+//    Open  /api/chat?health=1  in a browser. It reports which provider and
+//    model are live, lists every model the key can reach, and explains any
+//    failure — without ever exposing the key.
+//
+//  WHY MODELS ARE DISCOVERED AT RUNTIME:
+//    This chatbot previously broke silently because a hardcoded model
+//    (llama-3.3-70b-versatile) was decommissioned and every request 404'd.
+//    Both providers below now list their available models and pick the best
+//    one, so a deprecation degrades gracefully instead of going dead quiet.
 // ============================================================================
 
 const SYSTEM_PROMPT = `You are "Yashwanth's AI" — the assistant embedded on Yashwanth Ravi's personal portfolio website. Answer visitors' questions about Yashwanth accurately, in a warm, professional tone, and concisely (usually 1-4 sentences). Use ONLY the facts below. If you don't know something or it's unrelated to Yashwanth, say so briefly and steer back to his work. Never invent facts, employers, dates, or numbers. You may use **bold** for emphasis.
@@ -57,23 +66,109 @@ Recommended for the Indian Armed Forces three times via the SSB (Services Select
 === CONTACT ===
 Email yashwanthgangur@gmail.com, LinkedIn linkedin.com/in/yashwanth-ravi. There is also a "Get in touch" form on the site. Do not provide a phone number — he is reachable by email, LinkedIn or the contact form only. He is open to senior product roles and interesting conversations.`;
 
-// Tried in order. If one is decommissioned or unavailable, the next is used.
-// NOTE: the llama-3.x chat models are no longer available on this Groq account
-// (they return HTTP 404), which is what silently broke the chatbot before.
-// Check /api/chat?health=1 for the live list this key can actually reach.
-const MODELS = [
-  'openai/gpt-oss-120b',
-  'openai/gpt-oss-20b',
-  'qwen/qwen3.8-27b',
-];
-
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
-async function callGroq(key, model, messages, maxTokens) {
-  const payload = { model, messages, temperature: 0.4, max_tokens: maxTokens };
-  // gpt-oss models reason before answering; keep that budget small so the
-  // visible answer isn't truncated and latency stays low.
+// Warm-lambda cache so we don't list models on every request.
+let modelCache = { provider: null, model: null, at: 0 };
+const CACHE_MS = 30 * 60 * 1000;
+
+// ---------------------------------------------------------------------------
+//  Gemini
+// ---------------------------------------------------------------------------
+
+// Higher score wins. Favours newest stable Flash: best quality-per-free-quota
+// for a site chatbot (Pro has a far lower daily cap on the free tier).
+function scoreGemini(id) {
+  if (!/^gemini-/.test(id)) return -1;
+  // Exclude non-chat and specialised variants.
+  if (/embedding|aqa|image|vision-only|tts|audio|live|native-audio|computer-use|robotics|guard/.test(id)) return -1;
+  const ver = parseFloat((id.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] || '0');
+  let s = ver * 100;                       // newer generation wins first
+  if (/-flash/.test(id)) s += 40;          // Flash: high free quota, fast
+  if (/-pro/.test(id)) s += 20;            // Pro: better, but ~100 req/day free
+  if (/-lite/.test(id)) s -= 25;           // Lite: weaker answers
+  if (/preview|exp/.test(id)) s -= 30;     // prefer stable
+  if (/-\d{3,}$/.test(id)) s -= 5;         // prefer alias over dated snapshot
+  return s;
+}
+
+async function listGeminiModels(key) {
+  const r = await fetch(`${GEMINI_BASE}/models?key=${encodeURIComponent(key)}&pageSize=200`);
+  const text = await r.text();
+  let json = null;
+  try { json = JSON.parse(text); } catch (_) {}
+  if (!r.ok) {
+    return { ok: false, status: r.status, error: (json?.error?.message || text || '').slice(0, 250), ids: [] };
+  }
+  const ids = (json?.models || [])
+    .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
+    .map((m) => String(m.name || '').replace(/^models\//, ''));
+  return { ok: true, status: 200, ids };
+}
+
+async function pickGeminiModel(key) {
+  const list = await listGeminiModels(key);
+  if (!list.ok) return { ok: false, status: list.status, error: list.error, ids: [] };
+  const ranked = list.ids
+    .map((id) => ({ id, score: scoreGemini(id) }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score);
+  return { ok: true, model: ranked[0]?.id || null, ids: list.ids, ranked: ranked.slice(0, 5) };
+}
+
+async function callGemini(key, model, message, history) {
+  const contents = [];
+  history.slice(-6).forEach((m) => {
+    if (m && (m.role === 'user' || m.role === 'assistant') && m.content) {
+      contents.push({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: String(m.content).slice(0, 1500) }],
+      });
+    }
+  });
+  contents.push({ role: 'user', parts: [{ text: String(message).slice(0, 1000) }] });
+
+  const r = await fetch(`${GEMINI_BASE}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents,
+      generationConfig: { temperature: 0.4, maxOutputTokens: 800 },
+    }),
+  });
+  const text = await r.text();
+  let json = null;
+  try { json = JSON.parse(text); } catch (_) {}
+  const parts = json?.candidates?.[0]?.content?.parts || [];
+  const reply = parts.map((p) => p.text || '').join('').trim();
+  return {
+    ok: r.ok && Boolean(reply),
+    status: r.status,
+    reply: reply || null,
+    error: (json?.error?.message || (r.ok ? 'empty reply' : text) || '').slice(0, 250),
+    blocked: json?.promptFeedback?.blockReason || json?.candidates?.[0]?.finishReason || null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+//  Groq (fallback provider)
+// ---------------------------------------------------------------------------
+const GROQ_PREFERRED = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b'];
+
+async function callGroq(key, model, message, history) {
+  const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
+  history.slice(-6).forEach((m) => {
+    if (m && (m.role === 'user' || m.role === 'assistant') && m.content) {
+      messages.push({ role: m.role, content: String(m.content).slice(0, 1500) });
+    }
+  });
+  messages.push({ role: 'user', content: String(message).slice(0, 1000) });
+
+  const payload = { model, messages, temperature: 0.4, max_tokens: 800 };
   if (model.startsWith('openai/gpt-oss')) payload.reasoning_effort = 'low';
+
   const r = await fetch(GROQ_URL, {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
@@ -81,89 +176,88 @@ async function callGroq(key, model, messages, maxTokens) {
   });
   const text = await r.text();
   let json = null;
-  try { json = JSON.parse(text); } catch (_) { /* non-JSON error page */ }
-  return { ok: r.ok, status: r.status, json, text };
+  try { json = JSON.parse(text); } catch (_) {}
+  const reply = json?.choices?.[0]?.message?.content?.trim();
+  return {
+    ok: r.ok && Boolean(reply),
+    status: r.status,
+    reply: reply || null,
+    error: (json?.error?.message || (r.ok ? 'empty reply' : text) || '').slice(0, 250),
+  };
 }
 
 // ---------------------------------------------------------------------------
 //  Health check — GET /api/chat?health=1
-//  Reports the real reason the chatbot is or isn't using the LLM.
-//  Never returns the key itself.
 // ---------------------------------------------------------------------------
 async function health(res) {
-  const key = process.env.GROQ_API_KEY;
+  const gem = process.env.GEMINI_API_KEY;
+  const groq = process.env.GROQ_API_KEY;
   const out = {
     endpoint: 'ok',
     runtime: 'node ' + process.version,
-    keyPresent: Boolean(key),
-    keyLength: key ? key.length : 0,
-    keyLooksValid: key ? /^gsk_[A-Za-z0-9]{20,}$/.test(key.trim()) : false,
-    keyHasWhitespace: key ? key !== key.trim() : false,
-    models: {},
+    providers: {
+      gemini: { keyPresent: Boolean(gem), keyLength: gem ? gem.length : 0, keyHasWhitespace: gem ? gem !== gem.trim() : false },
+      groq: { keyPresent: Boolean(groq), keyLength: groq ? groq.length : 0, keyHasWhitespace: groq ? groq !== groq.trim() : false },
+    },
   };
-  if (!key) {
-    out.diagnosis =
-      'GROQ_API_KEY is not set on this deployment. Add it in Vercel → Settings → ' +
-      'Environment Variables (tick Production), then REDEPLOY — existing deployments ' +
-      'do not pick up new variables.';
-    return res.status(200).json(out);
-  }
-  // Which models does this key actually have access to?
-  try {
-    const lr = await fetch('https://api.groq.com/openai/v1/models', {
-      headers: { Authorization: `Bearer ${key}` },
-    });
-    if (lr.ok) {
-      const lj = await lr.json();
-      out.availableModels = (lj?.data || []).map((m) => m.id).sort();
+
+  if (gem) {
+    const picked = await pickGeminiModel(gem.trim());
+    if (!picked.ok) {
+      out.providers.gemini.status = picked.status;
+      out.providers.gemini.error = picked.error;
+      out.providers.gemini.diagnosis =
+        picked.status === 400 || picked.status === 403
+          ? 'Google rejected the key. Check it was copied whole from aistudio.google.com/apikey, that the Generative Language API is enabled for that project, and that you redeployed after adding it.'
+          : 'Could not list Gemini models — see error above.';
     } else {
-      out.availableModels = 'list failed: HTTP ' + lr.status;
-    }
-  } catch (e) {
-    out.availableModels = 'list error: ' + String(e).slice(0, 120);
-  }
-  for (const model of MODELS) {
-    try {
-      const r = await callGroq(key, model, [{ role: 'user', content: 'ping' }], 5);
-      out.models[model] = {
-        httpStatus: r.status,
-        ok: r.ok,
-        error: r.ok ? null : (r.json?.error?.message || r.text || '').slice(0, 200),
-        code: r.ok ? null : (r.json?.error?.code || null),
-      };
-      if (r.ok) { out.workingModel = model; break; }
-    } catch (e) {
-      out.models[model] = { httpStatus: 0, ok: false, error: String(e).slice(0, 200) };
+      out.providers.gemini.chosenModel = picked.model;
+      out.providers.gemini.topCandidates = picked.ranked;
+      out.providers.gemini.availableModels = picked.ids;
+      const t = await callGemini(gem.trim(), picked.model, 'Reply with the single word: ok', []);
+      out.providers.gemini.testStatus = t.status;
+      out.providers.gemini.testOk = t.ok;
+      if (!t.ok) out.providers.gemini.error = t.error;
     }
   }
-  if (out.workingModel) {
-    out.diagnosis = 'Healthy — the LLM is reachable and answering on ' + out.workingModel + '.';
+
+  if (groq) {
+    const t = await callGroq(groq.trim(), GROQ_PREFERRED[0], 'Reply with the single word: ok', []);
+    out.providers.groq.testStatus = t.status;
+    out.providers.groq.testOk = t.ok;
+    out.providers.groq.model = GROQ_PREFERRED[0];
+    if (!t.ok) out.providers.groq.error = t.error;
+  }
+
+  if (out.providers.gemini.testOk) {
+    out.activeProvider = 'gemini';
+    out.activeModel = out.providers.gemini.chosenModel;
+    out.diagnosis = 'Healthy — answering on Gemini (' + out.activeModel + ').';
+  } else if (out.providers.groq.testOk) {
+    out.activeProvider = 'groq';
+    out.activeModel = GROQ_PREFERRED[0];
+    out.diagnosis = gem
+      ? 'Gemini is configured but not working (see providers.gemini.error); falling back to Groq (' + out.activeModel + ').'
+      : 'Healthy — answering on Groq (' + out.activeModel + '). Add GEMINI_API_KEY to use Gemini instead.';
   } else {
-    const first = Object.values(out.models)[0] || {};
-    if (first.httpStatus === 401) {
-      out.diagnosis = 'Groq rejected the key (401). It is invalid, revoked or rotated. Create a new key at console.groq.com/keys, update it in Vercel, then redeploy.';
-    } else if (first.httpStatus === 429) {
-      out.diagnosis = 'Rate limited or out of quota (429) on the Groq free tier. It resets — try later, or use a different key.';
-    } else if (first.httpStatus === 404 || first.code === 'model_not_found') {
-      out.diagnosis = 'Every model in the list was rejected as unknown/decommissioned. Check the current model names at console.groq.com/docs/models.';
-    } else {
-      out.diagnosis = 'The key is set but Groq did not accept the request. See models[] above for the exact error.';
-    }
+    out.activeProvider = null;
+    out.diagnosis = (gem || groq)
+      ? 'No provider is working — the chatbot is serving built-in answers. See providers above for the exact error.'
+      : 'No API key is configured on this deployment. Add GEMINI_API_KEY (or GROQ_API_KEY) in Vercel → Settings → Environment Variables, then REDEPLOY.';
   }
   return res.status(200).json(out);
 }
 
+// ---------------------------------------------------------------------------
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method === 'GET') {
     const url = new URL(req.url, 'http://x');
     if (url.searchParams.get('health') === '1') return health(res);
-    return res.status(405).json({ error: 'Method not allowed. POST a {message} here, or GET ?health=1 to diagnose.' });
+    return res.status(405).json({ error: 'Method not allowed. POST {message} here, or GET ?health=1 to diagnose.' });
   }
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
@@ -173,36 +267,50 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing message' });
     }
 
-    const key = process.env.GROQ_API_KEY;
-    if (!key) {
+    const gem = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim();
+    const groq = process.env.GROQ_API_KEY && process.env.GROQ_API_KEY.trim();
+    if (!gem && !groq) {
       return res.status(503).json({ error: 'LLM not configured', reason: 'no_api_key' });
     }
 
-    const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
-    history.slice(-6).forEach((m) => {
-      if (m && (m.role === 'user' || m.role === 'assistant') && m.content) {
-        messages.push({ role: m.role, content: String(m.content).slice(0, 1500) });
-      }
-    });
-    messages.push({ role: 'user', content: message.slice(0, 1000) });
+    const errors = {};
 
-    let last = null;
-    for (const model of MODELS) {
-      const r = await callGroq(key, model, messages, 800);
-      last = r;
-      if (r.ok) {
-        const reply = r.json?.choices?.[0]?.message?.content?.trim();
-        if (reply) return res.status(200).json({ reply, model });
+    // --- provider 1: Gemini ---
+    if (gem) {
+      let model = (modelCache.provider === 'gemini' && Date.now() - modelCache.at < CACHE_MS)
+        ? modelCache.model : null;
+      if (!model) {
+        const picked = await pickGeminiModel(gem);
+        if (picked.ok && picked.model) {
+          model = picked.model;
+          modelCache = { provider: 'gemini', model, at: Date.now() };
+        } else {
+          errors.gemini = 'model list failed (HTTP ' + picked.status + '): ' + picked.error;
+        }
       }
-      // 401 / 403 are key problems — retrying other models cannot help.
-      if (r.status === 401 || r.status === 403) break;
+      if (model) {
+        const r = await callGemini(gem, model, message, history);
+        if (r.ok) return res.status(200).json({ reply: r.reply, provider: 'gemini', model });
+        errors.gemini = 'HTTP ' + r.status + ': ' + r.error + (r.blocked ? ' [' + r.blocked + ']' : '');
+        modelCache = { provider: null, model: null, at: 0 }; // force re-pick next time
+      }
+    }
+
+    // --- provider 2: Groq ---
+    if (groq) {
+      for (const model of GROQ_PREFERRED) {
+        const r = await callGroq(groq, model, message, history);
+        if (r.ok) return res.status(200).json({ reply: r.reply, provider: 'groq', model });
+        errors.groq = 'HTTP ' + r.status + ': ' + r.error;
+        if (r.status === 401 || r.status === 403) break;
+      }
     }
 
     return res.status(502).json({
       error: 'LLM request failed',
-      reason: last?.status === 401 ? 'bad_api_key' : 'upstream_error',
-      status: last?.status || 0,
-      detail: (last?.json?.error?.message || last?.text || '').slice(0, 300),
+      reason: 'all_providers_failed',
+      errors,
+      hint: 'Open /api/chat?health=1 for a full diagnosis.',
     });
   } catch (err) {
     return res.status(500).json({ error: 'Server error', detail: String(err).slice(0, 200) });
