@@ -70,8 +70,12 @@ const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 // Warm-lambda cache so we don't list models on every request.
-let modelCache = { provider: null, model: null, at: 0 };
+let modelCache = { provider: null, models: null, at: 0 };
 const CACHE_MS = 30 * 60 * 1000;
+
+// Transient upstream conditions — worth trying the next model rather than
+// abandoning the provider. 503 "high demand" is common on the newest model.
+const RETRYABLE = new Set([408, 429, 500, 502, 503, 504]);
 
 // ---------------------------------------------------------------------------
 //  Gemini
@@ -82,7 +86,7 @@ const CACHE_MS = 30 * 60 * 1000;
 function scoreGemini(id) {
   if (!/^gemini-/.test(id)) return -1;
   // Exclude non-chat and specialised variants.
-  if (/embedding|aqa|image|vision-only|tts|audio|live|native-audio|computer-use|robotics|guard/.test(id)) return -1;
+  if (/embedding|aqa|image|vision-only|tts|audio|live|native-audio|computer-use|robotics|guard|transcribe|omni|nano-banana|lyria|veo|imagen|deep-research|customtools/.test(id)) return -1;
   const ver = parseFloat((id.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] || '0');
   let s = ver * 100;                       // newer generation wins first
   if (/-flash/.test(id)) s += 40;          // Flash: high free quota, fast
@@ -114,7 +118,13 @@ async function pickGeminiModel(key) {
     .map((id) => ({ id, score: scoreGemini(id) }))
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score);
-  return { ok: true, model: ranked[0]?.id || null, ids: list.ids, ranked: ranked.slice(0, 5) };
+  return {
+    ok: true,
+    model: ranked[0]?.id || null,
+    models: ranked.slice(0, 4).map((x) => x.id), // failover chain
+    ids: list.ids,
+    ranked: ranked.slice(0, 5),
+  };
 }
 
 async function callGemini(key, model, message, history) {
@@ -211,13 +221,31 @@ async function health(res) {
           ? 'Google rejected the key. Check it was copied whole from aistudio.google.com/apikey, that the Generative Language API is enabled for that project, and that you redeployed after adding it.'
           : 'Could not list Gemini models — see error above.';
     } else {
-      out.providers.gemini.chosenModel = picked.model;
+      out.providers.gemini.preferredModel = picked.model;
+      out.providers.gemini.failoverChain = picked.models;
       out.providers.gemini.topCandidates = picked.ranked;
       out.providers.gemini.availableModels = picked.ids;
-      const t = await callGemini(gem.trim(), picked.model, 'Reply with the single word: ok', []);
-      out.providers.gemini.testStatus = t.status;
-      out.providers.gemini.testOk = t.ok;
-      if (!t.ok) out.providers.gemini.error = t.error;
+      out.providers.gemini.attempts = [];
+      for (const model of picked.models) {
+        const t = await callGemini(gem.trim(), model, 'Reply with the single word: ok', []);
+        out.providers.gemini.attempts.push({ model, status: t.status, ok: t.ok, error: t.ok ? null : t.error });
+        if (t.ok) {
+          out.providers.gemini.chosenModel = model;
+          out.providers.gemini.testStatus = t.status;
+          out.providers.gemini.testOk = true;
+          break;
+        }
+        if (!RETRYABLE.has(t.status)) break;
+      }
+      if (!out.providers.gemini.testOk) {
+        const last = out.providers.gemini.attempts[out.providers.gemini.attempts.length - 1] || {};
+        out.providers.gemini.testStatus = last.status || 0;
+        out.providers.gemini.testOk = false;
+        out.providers.gemini.error = last.error || 'all candidate models failed';
+        out.providers.gemini.diagnosis = RETRYABLE.has(last.status)
+          ? 'Every candidate Gemini model is temporarily busy or rate-limited (HTTP ' + last.status + '). This is Google-side capacity, not your key — it usually clears on its own. Groq is serving in the meantime.'
+          : 'Gemini rejected the request — see error above.';
+      }
     }
   }
 
@@ -277,22 +305,23 @@ export default async function handler(req, res) {
 
     // --- provider 1: Gemini ---
     if (gem) {
-      let model = (modelCache.provider === 'gemini' && Date.now() - modelCache.at < CACHE_MS)
-        ? modelCache.model : null;
-      if (!model) {
+      let models = (modelCache.provider === 'gemini' && Date.now() - modelCache.at < CACHE_MS)
+        ? modelCache.models : null;
+      if (!models) {
         const picked = await pickGeminiModel(gem);
-        if (picked.ok && picked.model) {
-          model = picked.model;
-          modelCache = { provider: 'gemini', model, at: Date.now() };
+        if (picked.ok && picked.models && picked.models.length) {
+          models = picked.models;
+          modelCache = { provider: 'gemini', models, at: Date.now() };
         } else {
           errors.gemini = 'model list failed (HTTP ' + picked.status + '): ' + picked.error;
         }
       }
-      if (model) {
+      for (const model of (models || [])) {
         const r = await callGemini(gem, model, message, history);
         if (r.ok) return res.status(200).json({ reply: r.reply, provider: 'gemini', model });
-        errors.gemini = 'HTTP ' + r.status + ': ' + r.error + (r.blocked ? ' [' + r.blocked + ']' : '');
-        modelCache = { provider: null, model: null, at: 0 }; // force re-pick next time
+        errors.gemini = model + ' → HTTP ' + r.status + ': ' + r.error + (r.blocked ? ' [' + r.blocked + ']' : '');
+        // Key/permission or safety problems won't be fixed by another model.
+        if (!RETRYABLE.has(r.status)) break;
       }
     }
 
