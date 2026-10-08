@@ -386,15 +386,20 @@ export default async function handler(req, res) {
       // Walk the chain, preferring whichever model last answered. A 503 from
       // Google is usually a momentary spike, so each model gets one quick
       // retry before we move on — that alone recovers most transient failures.
-      const chain = orderModels(models || []);
+      // Budget must stay inside the function's maxDuration (60s, set in
+      // vercel.json). Without that header room the platform kills the
+      // function mid-chain and the browser just sees a failed request.
+      const chain = orderModels(models || []).slice(0, 5);
       const tried = [];
-      const deadline = Date.now() + 40000;
+      const PER_CALL = 9000;
+      const deadline = Date.now() + 45000;
       for (const model of chain) {
-        if (Date.now() > deadline) break;
-        let r = await callGemini(gem, model, message, history, 12000);
-        if (!r.ok && RETRYABLE.has(r.status) && Date.now() < deadline) {
-          await sleep(500);
-          r = await callGemini(gem, model, message, history, 12000);
+        if (deadline - Date.now() < PER_CALL) break;
+        let r = await callGemini(gem, model, message, history, PER_CALL);
+        // One quick retry, but only while there is room for it.
+        if (!r.ok && RETRYABLE.has(r.status) && deadline - Date.now() > PER_CALL + 1000) {
+          await sleep(400);
+          r = await callGemini(gem, model, message, history, PER_CALL);
         }
         if (r.ok) {
           lastGood = { model, at: Date.now() };

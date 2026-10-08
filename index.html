@@ -607,6 +607,19 @@
   .ai-head-l span { font-family:'Space Mono',monospace; font-size: 10.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
   .ai-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); display: inline-block; animation: pulse 2s infinite; }
   .ai-head.degraded .ai-dot { background: #e0a93b; animation: none; }
+  .ai-msg { -webkit-user-select: text; user-select: text; }
+  .ai-note { display: block; margin-bottom: 8px; padding: 7px 9px; border-radius: 9px;
+    background: color-mix(in srgb, #e0a93b 14%, transparent); border: 1px solid color-mix(in srgb, #e0a93b 35%, transparent);
+    color: #e0a93b; font-family:'Space Mono',monospace; font-size: 10.5px; line-height: 1.5; }
+  .ai-msg.bot { position: relative; }
+  .ai-copy { position: absolute; top: 6px; right: 6px; opacity: 0; transition: opacity .18s, color .18s;
+    background: color-mix(in srgb, var(--ink) 70%, transparent); border: 1px solid var(--line);
+    color: var(--muted-2); border-radius: 8px; width: 26px; height: 26px; display: grid; place-items: center;
+    cursor: pointer; font-family:'Space Mono',monospace; font-size: 9px; }
+  .ai-msg.bot:hover .ai-copy, .ai-copy:focus-visible { opacity: 1; }
+  .ai-copy:hover { color: var(--accent); }
+  .ai-copy.done { opacity: 1; color: var(--accent); }
+  @media (hover: none) { .ai-copy { opacity: .6; } }
   .ai-mic { width: 38px; height: 38px; flex: none; border-radius: 12px; border: 1px solid var(--line);
     background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer;
     transition: color .2s, border-color .2s, background .2s; }
@@ -2179,7 +2192,7 @@
       }
       if(s>bestScore){ bestScore=s; best=e; }
     }
-    return bestScore>=2 ? best.a : AI_FALLBACK;
+    return bestScore>=3 ? best.a : AI_FALLBACK;
   }
   function aiRenderLLM(text){
     let s=escapeHtml(text);
@@ -2188,8 +2201,40 @@
     s=s.replace(/\n{2,}/g,'<br><br>').replace(/\n/g,'<br>');
     return s;
   }
+
+  // ---- copy button on every answer ----
+  const COPY_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  const TICK_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+  function aiAddCopy(el){
+    const btn=document.createElement('button');
+    btn.type='button'; btn.className='ai-copy'; btn.title='Copy'; btn.setAttribute('aria-label','Copy this answer');
+    btn.innerHTML=COPY_ICON;
+    btn.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      // innerText keeps the line breaks the reader sees, not the raw markup
+      const txt = Array.from(el.childNodes).filter(n=> n!==btn).map(n=> n.textContent||'').join('').trim();
+      let done=false;
+      try{ await navigator.clipboard.writeText(txt); done=true; }
+      catch(_){
+        try{
+          const ta=document.createElement('textarea'); ta.value=txt;
+          ta.style.cssText='position:fixed;opacity:0'; document.body.appendChild(ta);
+          ta.select(); done=document.execCommand('copy'); document.body.removeChild(ta);
+        }catch(__){}
+      }
+      if(done){
+        btn.innerHTML=TICK_ICON; btn.classList.add('done'); btn.title='Copied';
+        setTimeout(()=>{ btn.innerHTML=COPY_ICON; btn.classList.remove('done'); btn.title='Copy'; }, 1600);
+      }
+    });
+    el.appendChild(btn);
+  }
+
   function aiAdd(text, who){
-    const d=document.createElement('div'); d.className='ai-msg '+who; d.innerHTML=text; aiBody.appendChild(d); aiBody.scrollTop=aiBody.scrollHeight; return d;
+    const d=document.createElement('div'); d.className='ai-msg '+who; d.innerHTML=text;
+    aiBody.appendChild(d);
+    if(who==='bot') aiAddCopy(d);
+    aiBody.scrollTop=aiBody.scrollHeight; return d;
   }
   function aiTyping(){ const d=document.createElement('div'); d.className='ai-typing'; d.innerHTML='<i></i><i></i><i></i>'; aiBody.appendChild(d); aiBody.scrollTop=aiBody.scrollHeight; return d; }
   async function aiRespond(q){
@@ -2198,7 +2243,7 @@
     let html=null;
     // 1) try the real LLM backend (if one is deployed)
     try{
-      const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(), 20000);
+      const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(), 50000);
       const r=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({message:q, history:aiHistory}), signal:ctrl.signal});
       clearTimeout(to);
@@ -2217,7 +2262,10 @@
       aiSetMode(false, '', 0, null);
     }
     // 2) fall back to the built-in knowledge base
-    if(!html){ html=aiScore(q); }
+    if(!html){
+      // Never let an offline keyword match pass as a real AI answer.
+      html = '<span class="ai-note">⚠ The live AI didn’t respond just now, so this is an offline fallback — it may not address your question. Please try again in a moment.</span>' + aiScore(q);
+    }
     const wait = html ? 260+Math.random()*260 : 0;
     setTimeout(()=>{
       t.remove(); aiAdd(html,'bot');
@@ -2277,10 +2325,12 @@
           let txt='';
           for(let i=e.resultIndex;i<e.results.length;i++){ txt += e.results[i][0].transcript; }
           aiText.value = txt.trim();
+          // Transcribe into the box only — the visitor decides when to send.
           const finalBit = e.results[e.results.length-1].isFinal;
           if(finalBit && aiText.value){
             stop();
-            aiForm.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true}));
+            aiText.focus();
+            try{ aiText.setSelectionRange(aiText.value.length, aiText.value.length); }catch(_){}
           }
         };
         rec.onerror = (e)=>{
