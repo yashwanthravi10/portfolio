@@ -607,6 +607,16 @@
   .ai-head-l span { font-family:'Space Mono',monospace; font-size: 10.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
   .ai-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); display: inline-block; animation: pulse 2s infinite; }
   .ai-head.degraded .ai-dot { background: #e0a93b; animation: none; }
+  .ai-mic { width: 38px; height: 38px; flex: none; border-radius: 12px; border: 1px solid var(--line);
+    background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer;
+    transition: color .2s, border-color .2s, background .2s; }
+  .ai-mic:hover { color: var(--accent); border-color: color-mix(in srgb,var(--accent) 45%,var(--line)); }
+  .ai-mic.rec { color: #111; background: var(--accent); border-color: var(--accent); animation: micPulse 1.3s infinite; }
+  @keyframes micPulse { 0%,100% { box-shadow: 0 0 0 0 color-mix(in srgb,var(--accent) 60%,transparent); }
+                        50% { box-shadow: 0 0 0 7px transparent; } }
+  .ai-mic[hidden] { display: none; }
+  .ai-email-chip { border-color: color-mix(in srgb,var(--accent) 50%,var(--line)) !important;
+    color: var(--accent) !important; }
   .ai-prov { display: inline-flex; align-items: center; gap: 5px; }
   .ai-prov img { width: 12px; height: 12px; display: block; flex: none; }
   .ai-powered { display: flex; align-items: center; justify-content: center; gap: 6px;
@@ -1606,7 +1616,10 @@
   <div class="ai-suggest" id="aiSuggest"></div>
   <div class="ai-powered" id="aiPowered" hidden></div>
   <form class="ai-input" id="aiForm">
-    <input type="text" id="aiText" placeholder="Ask anything about me or my tools…" autocomplete="off" />
+    <input type="text" id="aiText" placeholder="Ask me anything — maths, code, ideas, or about Yashwanth…" autocomplete="off" />
+    <button type="button" class="ai-mic" id="aiMic" aria-label="Ask by voice" title="Ask by voice" hidden>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg>
+    </button>
     <button type="submit" aria-label="Send">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
     </button>
@@ -2073,8 +2086,8 @@
     { keys:['thank','thanks','thankyou','cheers','appreciate'], a:"You're welcome! Anything else you'd like to know about Yashwanth — his AI work, projects, or how to reach him?" },
     { keys:['location','based','where does he live','city','bengaluru','bangalore','india'], a:"Yashwanth is based in <b>Bengaluru, India</b>." }
   ];
-  const AI_FALLBACK = "I'm focused on Yashwanth — his experience, projects, AI/ML work, education, certifications, the tools he uses, his life beyond work, and how to reach him. Try one of the suggestions below, or ask something like “What AI has he built?” or “What tools does he use?”";
-  const AI_SUGGEST = ["His experience?","What AI has he built?","Which tools does he use?","Tell me about the SSB","How do I contact him?"];
+  const AI_FALLBACK = "The live AI is briefly unavailable, so I'm answering from a built-in summary for now — ask again shortly and the full assistant should be back. Meanwhile I can still help with Yashwanth's experience, projects, AI/ML work, education, certifications, the tools he uses, his life beyond work, and how to reach him. Try one of the suggestions below, or ask something like “What AI has he built?” or “What tools does he use?”";
+  const AI_SUGGEST = ["His experience?","What AI has he built?","Explain RAG simply","What is 17% of 2,480?","✉ Email Yashwanth"];
   const STOP = new Set(['the','a','an','is','are','was','were','do','does','did','of','to','in','on','for','and','or','his','he','she','you','your','me','my','about','what','who','how','can','tell','give','me','with','at','it','this','that','please']);
 
   const aiLaunch=document.getElementById('aiLaunch'), aiChat=document.getElementById('aiChat'), aiClose=document.getElementById('aiClose'),
@@ -2180,6 +2193,7 @@
   }
   function aiTyping(){ const d=document.createElement('div'); d.className='ai-typing'; d.innerHTML='<i></i><i></i><i></i>'; aiBody.appendChild(d); aiBody.scrollTop=aiBody.scrollHeight; return d; }
   async function aiRespond(q){
+    if(aiEmailIntent(q)){ aiOfferEmail(); return; }
     const t=aiTyping();
     let html=null;
     // 1) try the real LLM backend (if one is deployed)
@@ -2220,10 +2234,68 @@
   function aiOpen(){
     aiChat.classList.add('open'); aiChat.setAttribute('aria-hidden','false'); aiLaunch.classList.add('hidden');
     aiFetchProvider();
-    if(!aiGreeted){ aiGreeted=true; aiAdd("Hi! 👋 I'm <b>Yashwanth’s AI</b> — a real language model answering from his actual background. Ask me anything about his work, AI projects, the tools he uses, or how to reach him.",'bot'); aiRenderSuggest(); }
+    if(!aiGreeted){ aiGreeted=true; aiAdd("Hi! 👋 I'm <b>Yashwanth’s AI</b>, running on a real language model — so ask me <b>anything</b>, not just about Yashwanth. Maths, code, explanations, a second opinion, or his work and projects. You can <b>talk to me</b> using the mic, and if you'd like to reach Yashwanth directly, just say <b>“email Yashwanth”</b>.",'bot'); aiRenderSuggest(); }
     setTimeout(()=>aiText.focus(), 120);
   }
   function aiCloseFn(){ aiChat.classList.remove('open'); aiChat.setAttribute('aria-hidden','true'); aiLaunch.classList.remove('hidden'); }
+
+  // ---- email intent: let visitors reach Yashwanth straight from the chat ----
+  function aiEmailIntent(q){
+    return /\b(email|e-mail|contact|reach|get in touch|hire|message)\b.*\b(yashwanth|you|him|me)\b/i.test(q)
+        || /\b(email|contact|hire)\s+yashwanth\b/i.test(q)
+        || /^✉/.test(q.trim());
+  }
+  function aiOfferEmail(){
+    const d=document.createElement('div'); d.className='ai-msg bot';
+    d.innerHTML = 'Happy to put you in touch — this opens a short form that emails Yashwanth directly. He replies within 24 hours.';
+    aiBody.appendChild(d);
+    const wrap=document.createElement('div'); wrap.className='ai-suggest'; wrap.style.paddingTop='0';
+    const b=document.createElement('button'); b.className='ai-chip ai-email-chip'; b.type='button';
+    b.textContent='✉ Open the email form';
+    b.addEventListener('click', ()=>{ aiCloseFn(); openContactForm(); });
+    wrap.appendChild(b); aiBody.appendChild(wrap);
+    requestAnimationFrame(()=>{ aiBody.scrollTop = aiBody.scrollHeight; });
+  }
+
+  // ---- voice input (Web Speech API) ----
+  (function(){
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const mic = document.getElementById('aiMic');
+    if(!SR || !mic) return;          // unsupported browser: button stays hidden
+    mic.hidden = false;
+    let rec=null, listening=false;
+    function stop(){ listening=false; mic.classList.remove('rec'); mic.setAttribute('aria-label','Ask by voice'); try{ rec && rec.stop(); }catch(_){} }
+    mic.addEventListener('click', ()=>{
+      if(listening){ stop(); return; }
+      try{
+        rec = new SR();
+        rec.lang = navigator.language || 'en-IN';
+        rec.interimResults = true;
+        rec.continuous = false;
+        rec.onstart = ()=>{ listening=true; mic.classList.add('rec'); mic.setAttribute('aria-label','Stop listening'); aiText.placeholder='Listening…'; };
+        rec.onresult = (e)=>{
+          let txt='';
+          for(let i=e.resultIndex;i<e.results.length;i++){ txt += e.results[i][0].transcript; }
+          aiText.value = txt.trim();
+          const finalBit = e.results[e.results.length-1].isFinal;
+          if(finalBit && aiText.value){
+            stop();
+            aiForm.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true}));
+          }
+        };
+        rec.onerror = (e)=>{
+          stop();
+          aiText.placeholder='Ask me anything — maths, code, ideas, or about Yashwanth…';
+          if(e && (e.error==='not-allowed'||e.error==='service-not-allowed')){
+            aiAdd('I need microphone permission to listen. Allow it in your browser’s address bar, then tap the mic again — or just type.','bot');
+          }
+        };
+        rec.onend = ()=>{ stop(); aiText.placeholder='Ask me anything — maths, code, ideas, or about Yashwanth…'; };
+        rec.start();
+      }catch(err){ stop(); }
+    });
+  })();
+
   aiLaunch.addEventListener('click', aiOpen);
   aiClose.addEventListener('click', aiCloseFn);
   aiForm.addEventListener('submit', (e)=>{ e.preventDefault(); const q=aiText.value.trim(); if(!q) return; aiAdd(escapeHtml(q),'user'); aiText.value=''; aiRespond(q); });

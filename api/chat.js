@@ -26,7 +26,17 @@
 //    dead quiet.
 // ============================================================================
 
-const SYSTEM_PROMPT = `You are "Yashwanth's AI" — the assistant embedded on Yashwanth Ravi's personal portfolio website. Answer visitors' questions about Yashwanth accurately, in a warm, professional tone, and concisely (usually 1-4 sentences). Use ONLY the facts below. If you don't know something or it's unrelated to Yashwanth, say so briefly and steer back to his work. Never invent facts, employers, dates, or numbers. You may use **bold** for emphasis.
+const SYSTEM_PROMPT = `You are "Yashwanth's AI" — a general-purpose AI assistant embedded on Yashwanth Ravi's personal portfolio website.
+
+You are a FULL assistant, not a scripted FAQ bot. Answer ANY question a visitor asks — maths, code, science, history, current affairs, writing help, advice, casual conversation, anything — with the same competence and care as any capable AI assistant. Never refuse a question merely because it is not about Yashwanth, and never say you are "focused on Yashwanth" or can only discuss him.
+
+You additionally know Yashwanth's background, set out below. When a question IS about him, use ONLY those facts: never invent employers, dates, numbers or projects, and say plainly if something is not covered there. For everything else, answer from your own general knowledge.
+
+Style: warm, direct and concise — usually 1-4 sentences, longer only when the question genuinely needs it. Show working for maths. You may use **bold** for emphasis.
+
+Your knowledge has a training cutoff and you have no live web access, so for anything recent or fast-moving, answer with what you know and say it may be out of date.
+
+If a visitor wants to contact, hire or work with Yashwanth, tell them they can click the "Email Yashwanth" button in this chat to send him a message directly, or reach him at yashwanthgangur@gmail.com or on LinkedIn.
 
 === PROFILE ===
 Yashwanth Ravi — Staff Product Manager, Applied AI (~7 years experience), based in Bengaluru, India. Focus: agentic AI, enterprise platforms, 0-to-1 growth and customer acquisition across consumer (B2C) and enterprise (B2B). Combines rigorous experimentation and unit-economics thinking with hands-on technical depth from a Master's in AI/ML.
@@ -73,6 +83,19 @@ const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
 // Warm-lambda cache so we don't list models on every request.
 let modelCache = { provider: null, models: null, at: 0 };
+// Remember the model that last answered: if the newest one is congested,
+// stop leading with it on every request.
+let lastGood = { model: null, at: 0 };
+const LAST_GOOD_MS = 10 * 60 * 1000;
+
+function orderModels(models) {
+  if (lastGood.model && Date.now() - lastGood.at < LAST_GOOD_MS && models.includes(lastGood.model)) {
+    return [lastGood.model].concat(models.filter((m) => m !== lastGood.model));
+  }
+  return models;
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const CACHE_MS = 30 * 60 * 1000;
 
 // Transient upstream conditions — worth trying the next model rather than
@@ -135,7 +158,9 @@ async function pickGeminiModel(key) {
   return {
     ok: true,
     model: ranked[0]?.id || null,
-    models: ranked.slice(0, 4).map((x) => x.id), // failover chain
+    // Deep failover chain: with no second vendor, resilience has to come
+    // from breadth within Google's own catalogue.
+    models: ranked.slice(0, 8).map((x) => x.id),
     ids: list.ids,
     ranked: ranked.slice(0, 5),
   };
@@ -318,7 +343,7 @@ export default async function handler(req, res) {
           }
         }
         if (models && models.length) {
-          return res.status(200).json({ provider: 'gemini', model: models[0] });
+          return res.status(200).json({ provider: 'gemini', model: orderModels(models)[0] });
         }
       }
       return res.status(200).json({ provider: null, model: null });
@@ -358,13 +383,29 @@ export default async function handler(req, res) {
           errors.gemini = 'model list failed (HTTP ' + picked.status + '): ' + picked.error;
         }
       }
-      for (const model of (models || [])) {
-        const r = await callGemini(gem, model, message, history);
-        if (r.ok) return res.status(200).json({ reply: r.reply, provider: 'gemini', model });
+      // Walk the chain, preferring whichever model last answered. A 503 from
+      // Google is usually a momentary spike, so each model gets one quick
+      // retry before we move on — that alone recovers most transient failures.
+      const chain = orderModels(models || []);
+      const tried = [];
+      const deadline = Date.now() + 40000;
+      for (const model of chain) {
+        if (Date.now() > deadline) break;
+        let r = await callGemini(gem, model, message, history, 12000);
+        if (!r.ok && RETRYABLE.has(r.status) && Date.now() < deadline) {
+          await sleep(500);
+          r = await callGemini(gem, model, message, history, 12000);
+        }
+        if (r.ok) {
+          lastGood = { model, at: Date.now() };
+          return res.status(200).json({ reply: r.reply, provider: 'gemini', model });
+        }
+        tried.push(model + ':' + r.status);
         errors.gemini = model + ' → HTTP ' + r.status + ': ' + r.error + (r.blocked ? ' [' + r.blocked + ']' : '');
         // Key/permission or safety problems won't be fixed by another model.
         if (!RETRYABLE.has(r.status)) break;
       }
+      if (tried.length) errors.tried = tried.join(', ');
     }
 
     return res.status(502).json({
