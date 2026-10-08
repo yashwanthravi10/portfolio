@@ -35,7 +35,7 @@ Two production AI systems: (1) A predictive PRICING ENGINE — classical ML (reg
 SimStar: Odoo ERP core, simstar.co website, AI pricing engine, LLM+RAG WhatsApp assistant, video dashboard, RapNet marketplace sync, offer management workflow, pair-stone matching algorithm, Diamond Digital Passport. Magicbricks: checkout CRO programme, subscription MVP, acquisition engine.
 
 === EDUCATION ===
-M.S., Artificial Intelligence & Machine Learning — IIT Kanpur (Indian Institute of Technology), 2024-2026, CGPA 8.5/10.
+M.S., Artificial Intelligence & Machine Learning — IIT Kanpur (Indian Institute of Technology), 2024-2026, CGPA 8.63/10.
 PGDM — IIM Rohtak (Indian Institute of Management), 2022-2024, CGPA 5.56/10.
 B.Tech, Electrical & Electronics Engineering — Reva University, Bengaluru, 2016-2020, CGPA 7.49/10.
 
