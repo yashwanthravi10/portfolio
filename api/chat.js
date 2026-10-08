@@ -107,8 +107,13 @@ function scoreGemini(id) {
 }
 
 async function listGeminiModels(key) {
-  const r = await fetch(`${GEMINI_BASE}/models?key=${encodeURIComponent(key)}&pageSize=200`, { signal: timeoutSignal(8000) });
-  const text = await r.text();
+  let r, text;
+  try {
+    r = await fetch(`${GEMINI_BASE}/models?key=${encodeURIComponent(key)}&pageSize=200`, { signal: timeoutSignal(8000) });
+    text = await r.text();
+  } catch (e) {
+    return { ok: false, status: 504, error: 'model list unreachable: ' + String(e).slice(0, 150), ids: [] };
+  }
   let json = null;
   try { json = JSON.parse(text); } catch (_) {}
   if (!r.ok) {
@@ -149,17 +154,30 @@ async function callGemini(key, model, message, history, timeoutMs) {
   });
   contents.push({ role: 'user', parts: [{ text: String(message).slice(0, 1000) }] });
 
-  const r = await fetch(`${GEMINI_BASE}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      contents,
-      generationConfig: { temperature: 0.4, maxOutputTokens: 800 },
-    }),
-    signal: timeoutSignal(timeoutMs),
-  });
-  const text = await r.text();
+  let r, text;
+  try {
+    r = await fetch(`${GEMINI_BASE}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents,
+        generationConfig: { temperature: 0.4, maxOutputTokens: 800 },
+      }),
+      signal: timeoutSignal(timeoutMs),
+    });
+    text = await r.text();
+  } catch (e) {
+    // Timeout or network failure. Report as retryable so the chain continues.
+    const timedOut = String(e && e.name) === 'TimeoutError' || String(e && e.name) === 'AbortError';
+    return {
+      ok: false,
+      status: timedOut ? 504 : 0,
+      reply: null,
+      error: timedOut ? ('no response within ' + timeoutMs + 'ms') : String(e).slice(0, 200),
+      blocked: null,
+    };
+  }
   let json = null;
   try { json = JSON.parse(text); } catch (_) {}
   const parts = json?.candidates?.[0]?.content?.parts || [];
@@ -264,6 +282,7 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method === 'GET') {
+   try {
     const url = new URL(req.url, 'http://x');
     if (url.searchParams.get('health') === '1') return health(res, url.searchParams.get('full') === '1');
 
@@ -289,6 +308,9 @@ export default async function handler(req, res) {
     }
 
     return res.status(405).json({ error: 'Method not allowed. POST {message} here, or GET ?health=1 to diagnose.' });
+   } catch (e) {
+    return res.status(500).json({ error: 'Diagnostic failed', detail: String(e).slice(0, 300) });
+   }
   }
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
