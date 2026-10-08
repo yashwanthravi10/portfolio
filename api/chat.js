@@ -202,11 +202,16 @@ async function health(res, full) {
       out.providers.gemini.topCandidates = picked.ranked;
       out.providers.gemini.availableModels = picked.ids;
       out.providers.gemini.attempts = [];
-      // Test only the preferred model by default so this endpoint always
-      // answers well within the function time limit. ?full=1 walks the chain.
-      const toTest = full ? picked.models : picked.models.slice(0, 1);
-      for (const model of toTest) {
-        const t = await callGemini(gem.trim(), model, 'Reply with the single word: ok', [], 7000);
+      // Probe the failover chain the chat path actually uses, but under a
+      // wall-clock budget so this endpoint can never outlive the function.
+      // Default stops at 2 models; ?full=1 walks up to 4.
+      const maxModels = full ? 4 : 2;
+      const deadline = Date.now() + (full ? 20000 : 12000);
+      let budgetHit = false;
+      for (const model of picked.models.slice(0, maxModels)) {
+        const left = deadline - Date.now();
+        if (left < 2500) { budgetHit = true; break; }
+        const t = await callGemini(gem.trim(), model, 'Reply with the single word: ok', [], Math.min(6000, left));
         out.providers.gemini.attempts.push({ model, status: t.status, ok: t.ok, error: t.ok ? null : t.error });
         if (t.ok) {
           out.providers.gemini.chosenModel = model;
@@ -218,12 +223,22 @@ async function health(res, full) {
       }
       if (!out.providers.gemini.testOk) {
         const last = out.providers.gemini.attempts[out.providers.gemini.attempts.length - 1] || {};
+        const untested = picked.models.length - out.providers.gemini.attempts.length;
         out.providers.gemini.testStatus = last.status || 0;
         out.providers.gemini.testOk = false;
         out.providers.gemini.error = last.error || 'all candidate models failed';
-        out.providers.gemini.diagnosis = RETRYABLE.has(last.status)
-          ? 'Every candidate Gemini model is temporarily busy or rate-limited (HTTP ' + last.status + '). This is Google-side capacity, not your key — it usually clears on its own. The site serves its built-in answers until it does.'
-          : 'Gemini rejected the request — see error above.';
+        out.providers.gemini.untestedFallbacks = untested > 0 ? picked.models.slice(-untested) : [];
+        if (RETRYABLE.has(last.status)) {
+          out.providers.gemini.diagnosis = untested > 0
+            ? 'The models probed here (' + out.providers.gemini.attempts.map((a) => a.model).join(', ') +
+              ') are temporarily busy or rate-limited on Google\'s side — HTTP ' + last.status + '. This is capacity, not your key. ' +
+              (budgetHit ? 'The probe stopped at its time budget, so ' : 'This check did not probe ') +
+              untested + ' further fallback model(s): ' + picked.models.slice(-untested).join(', ') +
+              '. A real chat message still tries those, so the chatbot may well be answering normally — send it one to confirm, or use ?health=1&full=1.'
+            : 'Every candidate Gemini model is temporarily busy or rate-limited (HTTP ' + last.status + '). This is Google-side capacity, not your key — it usually clears on its own. The site serves its built-in answers until it does.';
+        } else {
+          out.providers.gemini.diagnosis = 'Gemini rejected the request — see error above.';
+        }
       }
     }
   }
@@ -234,8 +249,11 @@ async function health(res, full) {
     out.diagnosis = 'Healthy — answering on Gemini (' + out.activeModel + ').';
   } else {
     out.activeProvider = null;
+    const untested = (out.providers.gemini.untestedFallbacks || []).length;
     out.diagnosis = gem
-      ? 'Gemini is configured but not answering — the chatbot is serving built-in answers. See providers.gemini for the exact error.'
+      ? (untested > 0
+          ? 'The Gemini models probed here were busy, but ' + untested + ' fallback model(s) were not probed and a real chat message still tries them — so the chatbot may be answering normally. See providers.gemini.diagnosis.'
+          : 'Gemini is configured but not answering — the chatbot is serving built-in answers. See providers.gemini for the exact error.')
       : 'No GEMINI_API_KEY is configured on this deployment. Add it in Vercel → Settings → Environment Variables, then REDEPLOY.';
   }
   return res.status(200).json(out);
