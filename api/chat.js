@@ -79,6 +79,13 @@ const CACHE_MS = 30 * 60 * 1000;
 // abandoning the provider. 503 "high demand" is common on the newest model.
 const RETRYABLE = new Set([408, 429, 500, 502, 503, 504]);
 
+// Serverless functions have a hard wall-clock limit. Bound every upstream call
+// so a slow Google response fails fast enough for the next model to be tried,
+// instead of hanging until the whole function is killed.
+function timeoutSignal(ms) {
+  try { return AbortSignal.timeout(ms); } catch (_) { return undefined; }
+}
+
 // ---------------------------------------------------------------------------
 //  Gemini
 // ---------------------------------------------------------------------------
@@ -100,7 +107,7 @@ function scoreGemini(id) {
 }
 
 async function listGeminiModels(key) {
-  const r = await fetch(`${GEMINI_BASE}/models?key=${encodeURIComponent(key)}&pageSize=200`);
+  const r = await fetch(`${GEMINI_BASE}/models?key=${encodeURIComponent(key)}&pageSize=200`, { signal: timeoutSignal(8000) });
   const text = await r.text();
   let json = null;
   try { json = JSON.parse(text); } catch (_) {}
@@ -129,7 +136,8 @@ async function pickGeminiModel(key) {
   };
 }
 
-async function callGemini(key, model, message, history) {
+async function callGemini(key, model, message, history, timeoutMs) {
+  timeoutMs = timeoutMs || 15000;
   const contents = [];
   history.slice(-6).forEach((m) => {
     if (m && (m.role === 'user' || m.role === 'assistant') && m.content) {
@@ -149,6 +157,7 @@ async function callGemini(key, model, message, history) {
       contents,
       generationConfig: { temperature: 0.4, maxOutputTokens: 800 },
     }),
+    signal: timeoutSignal(timeoutMs),
   });
   const text = await r.text();
   let json = null;
@@ -167,7 +176,7 @@ async function callGemini(key, model, message, history) {
 // ---------------------------------------------------------------------------
 //  Health check — GET /api/chat?health=1
 // ---------------------------------------------------------------------------
-async function health(res) {
+async function health(res, full) {
   const gem = process.env.GEMINI_API_KEY;
   const out = {
     endpoint: 'ok',
@@ -193,8 +202,11 @@ async function health(res) {
       out.providers.gemini.topCandidates = picked.ranked;
       out.providers.gemini.availableModels = picked.ids;
       out.providers.gemini.attempts = [];
-      for (const model of picked.models) {
-        const t = await callGemini(gem.trim(), model, 'Reply with the single word: ok', []);
+      // Test only the preferred model by default so this endpoint always
+      // answers well within the function time limit. ?full=1 walks the chain.
+      const toTest = full ? picked.models : picked.models.slice(0, 1);
+      for (const model of toTest) {
+        const t = await callGemini(gem.trim(), model, 'Reply with the single word: ok', [], 7000);
         out.providers.gemini.attempts.push({ model, status: t.status, ok: t.ok, error: t.ok ? null : t.error });
         if (t.ok) {
           out.providers.gemini.chosenModel = model;
@@ -235,7 +247,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     const url = new URL(req.url, 'http://x');
-    if (url.searchParams.get('health') === '1') return health(res);
+    if (url.searchParams.get('health') === '1') return health(res, url.searchParams.get('full') === '1');
 
     // Lightweight provider/model info for the chat header. Lists models but
     // never generates, so it costs no generation quota.
