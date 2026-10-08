@@ -606,6 +606,7 @@
   .ai-head-l b { font-family:'Archivo'; font-weight: 800; font-size: 15px; display: block; }
   .ai-head-l span { font-family:'Space Mono',monospace; font-size: 10.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
   .ai-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); display: inline-block; animation: pulse 2s infinite; }
+  .ai-head.degraded .ai-dot { background: #e0a93b; animation: none; }
   .ai-close { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: var(--ink);
     color: var(--text); cursor: pointer; font-size: 14px; flex: none; transition: border-color .2s, color .2s; }
   .ai-close:hover { border-color: var(--accent); color: var(--accent); }
@@ -783,17 +784,25 @@
   <!-- marquee -->
   <div class="strip" style="margin-top:64px">
     <div class="strip-track">
+      <span class="strip-item"><b>Agentic AI</b> in production</span>
+      <span class="strip-item"><b>4</b> autonomous persona agents</span>
+      <span class="strip-item"><b>100%</b> agent actions audited</span>
+      <span class="strip-item"><b>Services → product</b> delivery model</span>
       <span class="strip-item"><b>20M+</b> monthly users</span>
       <span class="strip-item"><b>+$1.25M/yr</b> incremental revenue</span>
       <span class="strip-item"><b>&gt;80%</b> subscription renewal</span>
-      <span class="strip-item"><b>2</b> production AI systems</span>
+      <span class="strip-item"><b>3</b> production AI systems</span>
       <span class="strip-item"><b>−40%</b> manual effort</span>
       <span class="strip-item"><b>4</b> countries</span>
       <!-- duplicate for seamless loop -->
+      <span class="strip-item"><b>Agentic AI</b> in production</span>
+      <span class="strip-item"><b>4</b> autonomous persona agents</span>
+      <span class="strip-item"><b>100%</b> agent actions audited</span>
+      <span class="strip-item"><b>Services → product</b> delivery model</span>
       <span class="strip-item"><b>20M+</b> monthly users</span>
       <span class="strip-item"><b>+$1.25M/yr</b> incremental revenue</span>
       <span class="strip-item"><b>&gt;80%</b> subscription renewal</span>
-      <span class="strip-item"><b>2</b> production AI systems</span>
+      <span class="strip-item"><b>3</b> production AI systems</span>
       <span class="strip-item"><b>−40%</b> manual effort</span>
       <span class="strip-item"><b>4</b> countries</span>
     </div>
@@ -815,8 +824,8 @@
   <div class="wrap home-section">
     <div class="home-head reveal">
       <span class="eyebrow">What I do</span>
-      <h2 class="home-h2">A PM who ships <span class="hl">measurable outcomes</span>.</h2>
-      <p class="home-sub">Seven years turning ambiguous problems into shipped products across consumer growth, enterprise platforms, and AI — currently Staff Product Manager, Applied AI at QAD Redzone.</p>
+      <h2 class="home-h2">I build AI that’s <span class="hl">trusted to act</span>.</h2>
+      <p class="home-sub">Seven years turning ambiguous problems into shipped, measurable outcomes — consumer growth at 20M+ users, a four-country enterprise platform, and now autonomous agents acting inside enterprise systems as Staff Product Manager, Applied AI at QAD Redzone.</p>
     </div>
     <div class="home-focus">
       <div class="focus-card reveal">
@@ -1569,9 +1578,9 @@
 </footer>
 
 <!-- ============ AI CHATBOT ============ -->
-<button class="ai-launch" id="aiLaunch" aria-label="Ask AI about Yashwanth">
+<button class="ai-launch" id="aiLaunch" aria-label="Yashwanth’s AI — ask about his work">
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.6 4.2L18 8.8l-4.4 1.6L12 15l-1.6-4.6L6 8.8l4.4-1.6z"/><path d="M18 14l.8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8z"/></svg>
-  <span>Ask AI</span>
+  <span>Yashwanth’s AI</span>
 </button>
 
 <div class="ai-chat" id="aiChat" aria-hidden="true">
@@ -1579,8 +1588,8 @@
     <div class="ai-head-l">
       <div class="ai-avatar">YR</div>
       <div>
-        <b>Ask about Yashwanth</b>
-        <span><i class="ai-dot"></i> AI assistant · answers instantly</span>
+        <b>Yashwanth’s AI</b>
+        <span><i class="ai-dot"></i> <span id="aiStatus">Runs on a real LLM</span></span>
       </div>
     </div>
     <button class="ai-close" id="aiClose" aria-label="Close chat">✕</button>
@@ -2066,6 +2075,25 @@
   // set to your deployed function path; leave as '/api/chat' for Vercel
   const AI_ENDPOINT='/api/chat';
 
+  let aiModeShown=false;
+  function aiSetMode(live, model, status, body){
+    const head=document.querySelector('.ai-head'), st=document.getElementById('aiStatus');
+    if(!head||!st) return;
+    if(live){
+      head.classList.remove('degraded');
+      st.textContent = model ? ('Live \u00b7 '+model) : 'Runs on a real LLM';
+    } else {
+      head.classList.add('degraded');
+      st.textContent = 'Built-in mode \u00b7 LLM unavailable';
+      if(!aiModeShown){
+        aiModeShown=true;
+        const why = (body && (body.reason||body.error)) ? (' ('+(body.reason||body.error)+')') : (status?(' (HTTP '+status+')'):'');
+        console.warn('[Yashwanth\u2019s AI] Falling back to the built-in answers'+why+
+          '. Diagnose at '+location.origin+'/api/chat?health=1');
+      }
+    }
+  }
+
   function aiScore(q){
     const stem = w => (w.endsWith('s') && w.length>3) ? w.slice(0,-1) : w;
     const ql=' '+q.toLowerCase().replace(/[^a-z0-9\s]/g,' ')+' ';
@@ -2097,12 +2125,24 @@
     let html=null;
     // 1) try the real LLM backend (if one is deployed)
     try{
-      const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(), 12000);
+      const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(), 20000);
       const r=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({message:q, history:aiHistory}), signal:ctrl.signal});
       clearTimeout(to);
-      if(r.ok){ const j=await r.json(); if(j && j.reply){ html=aiRenderLLM(j.reply); } }
-    }catch(_){ /* no backend / offline → fall back */ }
+      if(r.ok){
+        const j=await r.json();
+        if(j && j.reply){ html=aiRenderLLM(j.reply); aiSetMode(true, j.model||''); }
+      } else {
+        let j=null; try{ j=await r.json(); }catch(_){}
+        console.warn('[Yashwanth\u2019s AI] backend returned '+r.status+':', j||'(no body)',
+                     '\u2192 open /api/chat?health=1 for a full diagnosis.');
+        aiSetMode(false, '', r.status, j);
+      }
+    }catch(err){
+      console.warn('[Yashwanth\u2019s AI] could not reach the backend:', err,
+                   '\u2192 open /api/chat?health=1 for a full diagnosis.');
+      aiSetMode(false, '', 0, null);
+    }
     // 2) fall back to the built-in knowledge base
     if(!html){ html=aiScore(q); }
     const wait = html ? 260+Math.random()*260 : 0;
@@ -2120,7 +2160,7 @@
   }
   function aiOpen(){
     aiChat.classList.add('open'); aiChat.setAttribute('aria-hidden','false'); aiLaunch.classList.add('hidden');
-    if(!aiGreeted){ aiGreeted=true; aiAdd("Hi! 👋 I'm Yashwanth's AI assistant. Ask me anything about his work, AI projects, the tools he uses, or how to reach him.",'bot'); aiRenderSuggest(); }
+    if(!aiGreeted){ aiGreeted=true; aiAdd("Hi! 👋 I'm <b>Yashwanth’s AI</b> — a real language model answering from his actual background. Ask me anything about his work, AI projects, the tools he uses, or how to reach him.",'bot'); aiRenderSuggest(); }
     setTimeout(()=>aiText.focus(), 120);
   }
   function aiCloseFn(){ aiChat.classList.remove('open'); aiChat.setAttribute('aria-hidden','true'); aiLaunch.classList.remove('hidden'); }
