@@ -283,6 +283,30 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     const url = new URL(req.url, 'http://x');
     if (url.searchParams.get('health') === '1') return health(res);
+
+    // Lightweight provider/model info for the chat header. Lists models but
+    // never generates, so it costs no generation quota.
+    if (url.searchParams.get('info') === '1') {
+      const gem = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim();
+      const groq = process.env.GROQ_API_KEY && process.env.GROQ_API_KEY.trim();
+      if (gem) {
+        let models = (modelCache.provider === 'gemini' && Date.now() - modelCache.at < CACHE_MS)
+          ? modelCache.models : null;
+        if (!models) {
+          const picked = await pickGeminiModel(gem);
+          if (picked.ok && picked.models && picked.models.length) {
+            models = picked.models;
+            modelCache = { provider: 'gemini', models, at: Date.now() };
+          }
+        }
+        if (models && models.length) {
+          return res.status(200).json({ provider: 'gemini', model: models[0] });
+        }
+      }
+      if (groq) return res.status(200).json({ provider: 'groq', model: GROQ_PREFERRED[0] });
+      return res.status(200).json({ provider: null, model: null });
+    }
+
     return res.status(405).json({ error: 'Method not allowed. POST {message} here, or GET ?health=1 to diagnose.' });
   }
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

@@ -607,6 +607,13 @@
   .ai-head-l span { font-family:'Space Mono',monospace; font-size: 10.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
   .ai-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); display: inline-block; animation: pulse 2s infinite; }
   .ai-head.degraded .ai-dot { background: #e0a93b; animation: none; }
+  .ai-prov { display: inline-flex; align-items: center; gap: 5px; }
+  .ai-prov img { width: 12px; height: 12px; display: block; flex: none; }
+  .ai-powered { display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 7px 10px 9px; font-family:'Space Mono',monospace; font-size: 10px; letter-spacing: .04em;
+    color: var(--muted-2); border-top: 1px solid var(--line); }
+  .ai-powered img { width: 11px; height: 11px; display: block; }
+  .ai-powered b { color: var(--muted); font-weight: 400; }
   .ai-close { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: var(--ink);
     color: var(--text); cursor: pointer; font-size: 14px; flex: none; transition: border-color .2s, color .2s; }
   .ai-close:hover { border-color: var(--accent); color: var(--accent); }
@@ -1596,6 +1603,7 @@
   </div>
   <div class="ai-body" id="aiBody"></div>
   <div class="ai-suggest" id="aiSuggest"></div>
+  <div class="ai-powered" id="aiPowered" hidden></div>
   <form class="ai-input" id="aiForm">
     <input type="text" id="aiText" placeholder="Ask anything about me or my tools…" autocomplete="off" />
     <button type="submit" aria-label="Send">
@@ -2076,15 +2084,56 @@
   const AI_ENDPOINT='/api/chat';
 
   let aiModeShown=false;
-  function aiSetMode(live, model, status, body){
+
+  // Friendly label for a raw model id, e.g. gemini-3.8-flash -> Gemini 3.8 Flash
+  function aiModelLabel(id){
+    if(!id) return '';
+    if(/^gemini-/.test(id)){
+      const m = id.match(/^gemini-([\d.]+)-(.*)$/);
+      if(m){
+        const tail = m[2].split('-').map(w=> w==='lite' ? 'Lite' : w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+        return 'Gemini '+m[1]+' '+tail;
+      }
+      return 'Gemini';
+    }
+    if(/gpt-oss/.test(id)) return 'GPT-OSS '+((id.match(/(\d+)b/)||[])[1]||'')+'B';
+    if(/qwen/.test(id)) return 'Qwen';
+    return id;
+  }
+  const AI_PROVIDERS = {
+    gemini: { name:'Google Gemini', icon:'https://cdn.simpleicons.org/googlegemini' },
+    groq:   { name:'Groq',          icon:null }
+  };
+
+  // Shows "Powered by <provider> <model>" with the provider's mark, but only
+  // when that provider is genuinely answering — never claim a provider that
+  // isn't serving.
+  function aiShowProvider(provider, model){
+    const bar=document.getElementById('aiPowered'), st=document.getElementById('aiStatus');
+    const p = AI_PROVIDERS[provider];
+    if(!bar) return;
+    if(!p){ bar.hidden = true; return; }
+    const label = aiModelLabel(model);
+    const ic = p.icon ? '<img src="'+p.icon+'" alt="" loading="lazy" onerror="this.remove()" />' : '';
+    bar.innerHTML = 'Powered by '+ic+'<b>'+p.name+(label?(' \u00b7 '+label):'')+'</b>';
+    bar.hidden = false;
+    if(st){
+      st.innerHTML = '<span class="ai-prov">'+ic+'Live on '+p.name+'</span>';
+    }
+  }
+
+  function aiSetMode(live, model, status, body, provider){
     const head=document.querySelector('.ai-head'), st=document.getElementById('aiStatus');
+    const bar=document.getElementById('aiPowered');
     if(!head||!st) return;
     if(live){
       head.classList.remove('degraded');
-      st.textContent = model ? ('Live \u00b7 '+model) : 'Runs on a real LLM';
+      if(provider && AI_PROVIDERS[provider]){ aiShowProvider(provider, model); }
+      else { st.textContent = model ? ('Live \u00b7 '+model) : 'Runs on a real LLM'; }
     } else {
       head.classList.add('degraded');
       st.textContent = 'Built-in mode \u00b7 LLM unavailable';
+      if(bar) bar.hidden = true;
       if(!aiModeShown){
         aiModeShown=true;
         const why = (body && (body.reason||body.error)) ? (' ('+(body.reason||body.error)+')') : (status?(' (HTTP '+status+')'):'');
@@ -2092,6 +2141,17 @@
           '. Diagnose at '+location.origin+'/api/chat?health=1');
       }
     }
+  }
+
+  // Ask the backend which provider/model is configured, so the badge is
+  // correct as soon as the panel opens. Costs no generation quota.
+  let aiInfoAsked=false;
+  function aiFetchProvider(){
+    if(aiInfoAsked) return; aiInfoAsked=true;
+    fetch(AI_ENDPOINT+'?info=1',{cache:'no-store'})
+      .then(r=> r.ok ? r.json() : null)
+      .then(j=>{ if(j && j.provider){ aiShowProvider(j.provider, j.model); } })
+      .catch(function(){ /* badge stays hidden until a real reply confirms it */ });
   }
 
   function aiScore(q){
@@ -2131,7 +2191,7 @@
       clearTimeout(to);
       if(r.ok){
         const j=await r.json();
-        if(j && j.reply){ html=aiRenderLLM(j.reply); aiSetMode(true, j.model||''); }
+        if(j && j.reply){ html=aiRenderLLM(j.reply); aiSetMode(true, j.model||'', 0, null, j.provider||''); }
       } else {
         let j=null; try{ j=await r.json(); }catch(_){}
         console.warn('[Yashwanth\u2019s AI] backend returned '+r.status+':', j||'(no body)',
@@ -2160,6 +2220,7 @@
   }
   function aiOpen(){
     aiChat.classList.add('open'); aiChat.setAttribute('aria-hidden','false'); aiLaunch.classList.add('hidden');
+    aiFetchProvider();
     if(!aiGreeted){ aiGreeted=true; aiAdd("Hi! 👋 I'm <b>Yashwanth’s AI</b> — a real language model answering from his actual background. Ask me anything about his work, AI projects, the tools he uses, or how to reach him.",'bot'); aiRenderSuggest(); }
     setTimeout(()=>aiText.focus(), 120);
   }
