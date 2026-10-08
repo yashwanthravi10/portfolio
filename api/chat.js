@@ -86,13 +86,41 @@ let modelCache = { provider: null, models: null, at: 0 };
 // Remember the model that last answered: if the newest one is congested,
 // stop leading with it on every request.
 let lastGood = { model: null, at: 0 };
+
+// Every Gemini model has its OWN free-tier quota bucket (the Flash models get
+// ~5 RPM / 20 RPD each; the Flash-Lite models ~15 RPM / 50 RPD). Hammering the
+// newest model first wastes a request on a bucket that is already empty and
+// leaves the roomier models untouched. So remember what just failed and skip
+// it until its bucket plausibly refills.
+const cooldown = new Map();              // model -> timestamp to skip until
+const COOLDOWN_QUOTA = 60 * 60 * 1000;   // 429: daily/minute bucket spent
+const COOLDOWN_BUSY = 90 * 1000;         // 503/504: transient congestion
+
+function coolingDown(model) {
+  const until = cooldown.get(model);
+  if (!until) return false;
+  if (Date.now() > until) { cooldown.delete(model); return false; }
+  return true;
+}
+function markFailure(model, status) {
+  if (status === 429) cooldown.set(model, Date.now() + COOLDOWN_QUOTA);
+  else if (RETRYABLE.has(status)) cooldown.set(model, Date.now() + COOLDOWN_BUSY);
+}
+
+// Whether this key may use the google_search tool. Null = not yet known.
+let groundingOK = { allowed: null, at: 0 };
 const LAST_GOOD_MS = 10 * 60 * 1000;
 
 function orderModels(models) {
-  if (lastGood.model && Date.now() - lastGood.at < LAST_GOOD_MS && models.includes(lastGood.model)) {
-    return [lastGood.model].concat(models.filter((m) => m !== lastGood.model));
+  let list = models.slice();
+  if (lastGood.model && Date.now() - lastGood.at < LAST_GOOD_MS && list.includes(lastGood.model)) {
+    list = [lastGood.model].concat(list.filter((m) => m !== lastGood.model));
   }
-  return models;
+  // Models known to be out of quota go last rather than being dropped — if
+  // everything is cooling down we would rather try than refuse.
+  const fresh = list.filter((m) => !coolingDown(m));
+  const cold = list.filter((m) => coolingDown(m));
+  return fresh.concat(cold);
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -160,7 +188,7 @@ async function pickGeminiModel(key) {
     model: ranked[0]?.id || null,
     // Deep failover chain: with no second vendor, resilience has to come
     // from breadth within Google's own catalogue.
-    models: ranked.slice(0, 8).map((x) => x.id),
+    models: ranked.slice(0, 10).map((x) => x.id),
     ids: list.ids,
     ranked: ranked.slice(0, 5),
   };
@@ -249,7 +277,11 @@ async function health(res, full, probe) {
           ? 'Google rejected the key. Check it was copied whole from aistudio.google.com/apikey, that the Generative Language API is enabled for that project, and that you redeployed after adding it.'
           : 'Could not list Gemini models — see error above.';
     } else {
-      out.providers.gemini.preferredModel = picked.model;
+      out.providers.gemini.preferredModel = orderModels(picked.models)[0];
+      out.providers.gemini.cooledDown = Array.from(cooldown.entries())
+        .filter(([, until]) => until > Date.now())
+        .map(([m, until]) => ({ model: m, secondsLeft: Math.round((until - Date.now()) / 1000) }));
+      out.providers.gemini.groundingAllowed = groundingOK.allowed;
       out.providers.gemini.failoverChain = picked.models;
       out.providers.gemini.topCandidates = picked.ranked;
       out.providers.gemini.availableModels = picked.ids;
@@ -426,24 +458,31 @@ export default async function handler(req, res) {
       // Budget must stay inside the function's maxDuration (60s, set in
       // vercel.json). Without that header room the platform kills the
       // function mid-chain and the browser just sees a failed request.
-      const chain = orderModels(models || []).slice(0, 5);
+      const chain = orderModels(models || []).slice(0, 8);
       const tried = [];
-      const PER_CALL = 9000;
+      const PER_CALL = 8000;
       const deadline = Date.now() + 45000;
+      // Don't re-attempt grounding for an hour after the key is told no.
+      const trySearch = !(groundingOK.allowed === false && Date.now() - groundingOK.at < 60 * 60 * 1000);
       for (const model of chain) {
         if (deadline - Date.now() < PER_CALL) break;
-        let r = await callGemini(gem, model, message, history, PER_CALL, true);
+        let r = await callGemini(gem, model, message, history, PER_CALL, trySearch);
         // A 400 here normally means this model or tier won't accept the
         // google_search tool. Retry ungrounded rather than losing the answer.
-        if (!r.ok && r.status === 400 && deadline - Date.now() > PER_CALL) {
+        if (!r.ok && r.status === 400 && trySearch && deadline - Date.now() > PER_CALL) {
+          groundingOK = { allowed: false, at: Date.now() };
           r = await callGemini(gem, model, message, history, PER_CALL, false);
           if (r.ok) r.searchUnavailable = true;
+        } else if (r.ok && trySearch) {
+          groundingOK = { allowed: true, at: Date.now() };
         }
-        // One quick retry, but only while there is room for it.
-        if (!r.ok && RETRYABLE.has(r.status) && deadline - Date.now() > PER_CALL + 1000) {
+        // Retry only transient congestion. A 429 means this model's bucket is
+        // empty — retrying it just burns another request against the limit.
+        if (!r.ok && r.status !== 429 && RETRYABLE.has(r.status) && deadline - Date.now() > PER_CALL + 1000) {
           await sleep(400);
-          r = await callGemini(gem, model, message, history, PER_CALL, true);
+          r = await callGemini(gem, model, message, history, PER_CALL, trySearch);
         }
+        if (!r.ok) markFailure(model, r.status);
         if (r.ok) {
           lastGood = { model, at: Date.now() };
           return res.status(200).json({
