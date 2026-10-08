@@ -58,19 +58,26 @@ Recommended for the Indian Armed Forces three times via the SSB (Services Select
 Email yashwanthgangur@gmail.com, LinkedIn linkedin.com/in/yashwanth-ravi. There is also a "Get in touch" form on the site. Do not provide a phone number — he is reachable by email, LinkedIn or the contact form only. He is open to senior product roles and interesting conversations.`;
 
 // Tried in order. If one is decommissioned or unavailable, the next is used.
+// NOTE: the llama-3.x chat models are no longer available on this Groq account
+// (they return HTTP 404), which is what silently broke the chatbot before.
+// Check /api/chat?health=1 for the live list this key can actually reach.
 const MODELS = [
-  'llama-3.3-70b-versatile',
-  'llama-3.1-8b-instant',
+  'openai/gpt-oss-120b',
   'openai/gpt-oss-20b',
+  'qwen/qwen3.8-27b',
 ];
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 async function callGroq(key, model, messages, maxTokens) {
+  const payload = { model, messages, temperature: 0.4, max_tokens: maxTokens };
+  // gpt-oss models reason before answering; keep that budget small so the
+  // visible answer isn't truncated and latency stays low.
+  if (model.startsWith('openai/gpt-oss')) payload.reasoning_effort = 'low';
   const r = await fetch(GROQ_URL, {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, messages, temperature: 0.4, max_tokens: maxTokens }),
+    body: JSON.stringify(payload),
   });
   const text = await r.text();
   let json = null;
@@ -181,7 +188,7 @@ export default async function handler(req, res) {
 
     let last = null;
     for (const model of MODELS) {
-      const r = await callGroq(key, model.trim ? model : model, messages, 400);
+      const r = await callGroq(key, model, messages, 800);
       last = r;
       if (r.ok) {
         const reply = r.json?.choices?.[0]?.message?.content?.trim();
