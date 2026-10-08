@@ -255,6 +255,24 @@ async function callGemini(key, model, message, history, timeoutMs, useSearch) {
   };
 }
 
+// One call, with the grounded -> ungrounded fallback built in. Everything
+// that talks to Gemini goes through here, so the diagnostics can never
+// disagree with what the chatbot actually does.
+async function generate(key, model, message, history, timeoutMs, allowSearch) {
+  const trySearch = allowSearch !== false &&
+    !(groundingOK.allowed === false && Date.now() - groundingOK.at < 60 * 60 * 1000);
+  let r = await callGemini(key, model, message, history, timeoutMs, trySearch);
+  if (!r.ok && trySearch && (r.status === 400 || r.status === 429)) {
+    groundingOK = { allowed: false, at: Date.now() };
+    const r2 = await callGemini(key, model, message, history, timeoutMs, false);
+    if (r2.ok) { r2.searchUnavailable = true; return r2; }
+    r = r2.status ? r2 : r;
+  } else if (r.ok && trySearch) {
+    groundingOK = { allowed: true, at: Date.now() };
+  }
+  return r;
+}
+
 // ---------------------------------------------------------------------------
 //  Health check — GET /api/chat?health=1
 // ---------------------------------------------------------------------------
@@ -300,7 +318,7 @@ async function health(res, full, probe) {
       for (const model of picked.models.slice(0, maxModels)) {
         const left = deadline - Date.now();
         if (left < 2500) { budgetHit = true; break; }
-        const t = await callGemini(gem.trim(), model, 'Reply with the single word: ok', [], Math.min(6000, left));
+        const t = await generate(gem.trim(), model, 'Reply with the single word: ok', [], Math.min(6000, left));
         out.providers.gemini.attempts.push({ model, status: t.status, ok: t.ok, error: t.ok ? null : t.error });
         if (t.ok) {
           out.providers.gemini.chosenModel = model;
@@ -386,7 +404,7 @@ export default async function handler(req, res) {
       const deadline = Date.now() + 40000;
       for (const m of chain) {
         if (deadline - Date.now() < 8000) break;
-        const r = await callGemini(gkey, m, q, [], 8000, useSearch);
+        const r = await generate(gkey, m, q, [], 8000, useSearch);
         attempts.push({ model: m, httpStatus: r.status, ok: r.ok, searched: r.searched,
                         error: r.ok ? null : (r.error || '').slice(0, 120) });
         if (!r.ok) { markFailure(m, r.status); continue; }
@@ -482,19 +500,7 @@ export default async function handler(req, res) {
       const trySearch = !(groundingOK.allowed === false && Date.now() - groundingOK.at < 60 * 60 * 1000);
       for (const model of chain) {
         if (deadline - Date.now() < PER_CALL) break;
-        let r = await callGemini(gem, model, message, history, PER_CALL, trySearch);
-        // Google Search grounding carries its OWN quota, and on the free tier
-        // it is effectively zero — it answers 429 even when generation has
-        // plenty of headroom. A 400 means the tool was rejected outright.
-        // Either way, drop the tool and retry the same model immediately,
-        // and remember, so one unavailable feature can't take the bot down.
-        if (!r.ok && trySearch && (r.status === 400 || r.status === 429) && deadline - Date.now() > PER_CALL) {
-          groundingOK = { allowed: false, at: Date.now() };
-          r = await callGemini(gem, model, message, history, PER_CALL, false);
-          if (r.ok) r.searchUnavailable = true;
-        } else if (r.ok && trySearch) {
-          groundingOK = { allowed: true, at: Date.now() };
-        }
+        let r = await generate(gem, model, message, history, PER_CALL);
         // Retry only transient congestion. A 429 means this model's bucket is
         // empty — retrying it just burns another request against the limit.
         if (!r.ok && r.status !== 429 && RETRYABLE.has(r.status) && deadline - Date.now() > PER_CALL + 1000) {
