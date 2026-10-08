@@ -374,6 +374,8 @@ export default async function handler(req, res) {
       const gkey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim();
       if (!gkey) return res.status(200).json({ error: 'no key' });
       const q = url.searchParams.get('q') || 'What is the weather in Bengaluru, India right now?';
+      // &search=0 isolates whether it is GENERATION quota or the search tool.
+      const useSearch = url.searchParams.get('search') !== '0';
       const picked = await pickGeminiModel(gkey);
       const chain = orderModels((picked.models || ['gemini-3.8-flash'])).slice(0, 8);
       // Walk the same chain the chat path uses, so this reflects reality.
@@ -382,13 +384,14 @@ export default async function handler(req, res) {
       const deadline = Date.now() + 40000;
       for (const m of chain) {
         if (deadline - Date.now() < 8000) break;
-        const r = await callGemini(gkey, m, q, [], 8000, true);
+        const r = await callGemini(gkey, m, q, [], 8000, useSearch);
         attempts.push({ model: m, httpStatus: r.status, ok: r.ok, searched: r.searched,
                         error: r.ok ? null : (r.error || '').slice(0, 120) });
         if (!r.ok) { markFailure(m, r.status); continue; }
         good = r; usedModel = m; break;
       }
       const out = {
+        searchRequested: useSearch,
         chain,
         attempts,
         model: usedModel,
