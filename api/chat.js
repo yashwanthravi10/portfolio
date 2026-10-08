@@ -101,6 +101,20 @@ async function health(res) {
       'do not pick up new variables.';
     return res.status(200).json(out);
   }
+  // Which models does this key actually have access to?
+  try {
+    const lr = await fetch('https://api.groq.com/openai/v1/models', {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    if (lr.ok) {
+      const lj = await lr.json();
+      out.availableModels = (lj?.data || []).map((m) => m.id).sort();
+    } else {
+      out.availableModels = 'list failed: HTTP ' + lr.status;
+    }
+  } catch (e) {
+    out.availableModels = 'list error: ' + String(e).slice(0, 120);
+  }
   for (const model of MODELS) {
     try {
       const r = await callGroq(key, model, [{ role: 'user', content: 'ping' }], 5);
