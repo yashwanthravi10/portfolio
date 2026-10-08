@@ -194,7 +194,7 @@ async function callGemini(key, model, message, history, timeoutMs) {
 // ---------------------------------------------------------------------------
 //  Health check — GET /api/chat?health=1
 // ---------------------------------------------------------------------------
-async function health(res, full) {
+async function health(res, full, probe) {
   const gem = process.env.GEMINI_API_KEY;
   const out = {
     endpoint: 'ok',
@@ -223,7 +223,10 @@ async function health(res, full) {
       // Probe the failover chain the chat path actually uses, but under a
       // wall-clock budget so this endpoint can never outlive the function.
       // Default stops at 2 models; ?full=1 walks up to 4.
-      const maxModels = full ? 4 : 2;
+      // By default we do NOT generate: listing models already proves the key
+      // works and shows what is reachable, and it returns in well under a
+      // second. Add ?test=1 to actually send a prompt (?full=1 for the chain).
+      const maxModels = full ? 4 : (probe ? 2 : 0);
       const deadline = Date.now() + (full ? 20000 : 12000);
       let budgetHit = false;
       for (const model of picked.models.slice(0, maxModels)) {
@@ -239,7 +242,12 @@ async function health(res, full) {
         }
         if (!RETRYABLE.has(t.status)) break;
       }
-      if (!out.providers.gemini.testOk) {
+      if (!probe && !full) {
+        out.providers.gemini.testOk = null;
+        out.providers.gemini.diagnosis =
+          'Key verified and ' + picked.ids.length + ' models reachable; preferred model is ' + picked.model +
+          '. No prompt was sent — add &test=1 to send one, or &full=1 to probe the whole failover chain.';
+      } else if (!out.providers.gemini.testOk) {
         const last = out.providers.gemini.attempts[out.providers.gemini.attempts.length - 1] || {};
         const untested = picked.models.length - out.providers.gemini.attempts.length;
         out.providers.gemini.testStatus = last.status || 0;
@@ -265,6 +273,12 @@ async function health(res, full) {
     out.activeProvider = 'gemini';
     out.activeModel = out.providers.gemini.chosenModel;
     out.diagnosis = 'Healthy — answering on Gemini (' + out.activeModel + ').';
+  } else if (out.providers.gemini.testOk === null) {
+    // Key and model list verified, no prompt sent.
+    out.activeProvider = 'gemini';
+    out.activeModel = out.providers.gemini.preferredModel;
+    out.diagnosis = 'Configured and reachable — Gemini key valid, preferred model ' +
+      out.activeModel + '. Add &test=1 to send a live prompt.';
   } else {
     out.activeProvider = null;
     const untested = (out.providers.gemini.untestedFallbacks || []).length;
@@ -284,7 +298,10 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
    try {
     const url = new URL(req.url, 'http://x');
-    if (url.searchParams.get('health') === '1') return health(res, url.searchParams.get('full') === '1');
+    if (url.searchParams.get('health') === '1') {
+      const full = url.searchParams.get('full') === '1';
+      return health(res, full, full || url.searchParams.get('test') === '1');
+    }
 
     // Lightweight provider/model info for the chat header. Lists models but
     // never generates, so it costs no generation quota.
