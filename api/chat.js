@@ -375,25 +375,36 @@ export default async function handler(req, res) {
       if (!gkey) return res.status(200).json({ error: 'no key' });
       const q = url.searchParams.get('q') || 'What is the weather in Bengaluru, India right now?';
       const picked = await pickGeminiModel(gkey);
-      const model = (picked.models && orderModels(picked.models)[0]) || 'gemini-3.8-flash';
-      const withSearch = await callGemini(gkey, model, q, [], 20000, true);
+      const chain = orderModels((picked.models || ['gemini-3.8-flash'])).slice(0, 8);
+      // Walk the same chain the chat path uses, so this reflects reality.
+      const attempts = [];
+      let good = null, usedModel = null;
+      const deadline = Date.now() + 40000;
+      for (const m of chain) {
+        if (deadline - Date.now() < 8000) break;
+        const r = await callGemini(gkey, m, q, [], 8000, true);
+        attempts.push({ model: m, httpStatus: r.status, ok: r.ok, searched: r.searched,
+                        error: r.ok ? null : (r.error || '').slice(0, 120) });
+        if (!r.ok) { markFailure(m, r.status); continue; }
+        good = r; usedModel = m; break;
+      }
       const out = {
-        model,
-        withSearch: {
-          httpStatus: withSearch.status,
-          ok: withSearch.ok,
-          searched: withSearch.searched,
-          queries: withSearch.queries,
-          sources: withSearch.sources,
-          reply: (withSearch.reply || '').slice(0, 400),
-          error: withSearch.ok ? null : withSearch.error,
-        },
+        chain,
+        attempts,
+        model: usedModel,
+        withSearch: good ? {
+          httpStatus: good.status, ok: true, searched: good.searched,
+          queries: good.queries, sources: good.sources,
+          reply: (good.reply || '').slice(0, 500),
+        } : null,
       };
-      out.verdict = withSearch.ok && withSearch.searched
-        ? 'Live web search IS working — the model ran a real Google query for this answer.'
-        : (withSearch.status === 400
-            ? 'The google_search tool was rejected (HTTP 400). Grounding may need billing enabled on the Google Cloud project.'
-            : 'No search was performed. See withSearch above.');
+      out.verdict = good && good.searched
+        ? 'Live web search IS working — ' + usedModel + ' ran a real Google query for this answer.'
+        : good
+          ? 'The model answered on ' + usedModel + ' but chose not to search for this question.'
+          : (attempts.some((a) => a.httpStatus === 400)
+              ? 'The google_search tool was rejected (HTTP 400) — grounding likely needs billing enabled.'
+              : 'Every model in the chain is out of quota or busy right now. See attempts above.');
       return res.status(200).json(out);
     }
 
