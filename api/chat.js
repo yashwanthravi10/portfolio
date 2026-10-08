@@ -79,6 +79,8 @@ Recommended for the Indian Armed Forces three times via the SSB (Services Select
 === CONTACT ===
 Email yashwanthgangur@gmail.com, LinkedIn linkedin.com/in/yashwanth-ravi. There is also a "Get in touch" form on the site. Do not provide a phone number — he is reachable by email, LinkedIn or the contact form only. He is open to senior product roles and interesting conversations.`;
 
+const NO_SEARCH_NOTE = '\n\nIMPORTANT FOR THIS REQUEST: live web search is NOT available right now, so you cannot look anything up. If the question needs current information (weather, news, prices, scores, anything "today"), say plainly that you cannot access live data at the moment and answer from general knowledge where that still helps. Never claim or imply that you searched.';
+
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
 // Warm-lambda cache so we don't list models on every request.
@@ -214,7 +216,7 @@ async function callGemini(key, model, message, history, timeoutMs, useSearch) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(Object.assign({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        systemInstruction: { parts: [{ text: SYSTEM_PROMPT + (useSearch ? '' : NO_SEARCH_NOTE) }] },
         contents,
         generationConfig: { temperature: 0.4, maxOutputTokens: 800 },
       }, useSearch ? { tools: [{ google_search: {} }] } : {})),
@@ -481,9 +483,12 @@ export default async function handler(req, res) {
       for (const model of chain) {
         if (deadline - Date.now() < PER_CALL) break;
         let r = await callGemini(gem, model, message, history, PER_CALL, trySearch);
-        // A 400 here normally means this model or tier won't accept the
-        // google_search tool. Retry ungrounded rather than losing the answer.
-        if (!r.ok && r.status === 400 && trySearch && deadline - Date.now() > PER_CALL) {
+        // Google Search grounding carries its OWN quota, and on the free tier
+        // it is effectively zero — it answers 429 even when generation has
+        // plenty of headroom. A 400 means the tool was rejected outright.
+        // Either way, drop the tool and retry the same model immediately,
+        // and remember, so one unavailable feature can't take the bot down.
+        if (!r.ok && trySearch && (r.status === 400 || r.status === 429) && deadline - Date.now() > PER_CALL) {
           groundingOK = { allowed: false, at: Date.now() };
           r = await callGemini(gem, model, message, history, PER_CALL, false);
           if (r.ok) r.searchUnavailable = true;
