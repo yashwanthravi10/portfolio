@@ -560,6 +560,11 @@
   footer { border-top: 1px solid var(--line); padding: 30px 0; }
   .foot-inner { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
     font-family:'Space Mono',monospace; font-size: 12px; color: var(--muted-2); }
+  .foot-r { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .visits { display: none; align-items: center; gap: 7px; color: var(--muted-2); }
+  .visits.on { display: inline-flex; }
+  .visits svg { opacity: .7; }
+  .visits b { color: var(--accent); font-weight: 700; letter-spacing: .02em; }
   .foot-inner .up { color: var(--muted); cursor: pointer; transition: color .2s; }
   .foot-inner .up:hover { color: var(--accent); }
 
@@ -997,6 +1002,44 @@
     </div>
 
     <div class="proj-grid" id="projGrid">
+      <!-- QAD Redzone -->
+      <article class="card reveal" data-cat="ai platform">
+        <div class="card-top"><span class="card-idx">Q1</span><span class="card-cat">QAD · Agentic AI</span></div>
+        <h3>Procurement Champion</h3>
+        <p>Autonomous purchasing agent that chases suppliers, reconciles confirmations and keeps PO data current inside the ERP.</p>
+        <div class="card-metrics"><span class="metric"><b>~70%</b> follow-ups automated</span><span class="metric">days → minutes</span><span class="metric">1st live agent</span></div>
+      </article>
+      <article class="card reveal" data-cat="ai platform">
+        <div class="card-top"><span class="card-idx">Q2</span><span class="card-cat">QAD · Platform</span></div>
+        <h3>Self-Serve Automations</h3>
+        <p>Template library, custom builder and LLM assistant that let customers configure their own agent workflows — no engineer required.</p>
+        <div class="card-metrics"><span class="metric"><b>0</b> eng tickets per flow</span><span class="metric"><b>&lt;1 day</b> to first automation</span><span class="metric">~85% self-built</span></div>
+      </article>
+      <article class="card reveal" data-cat="ai platform">
+        <div class="card-top"><span class="card-idx">Q3</span><span class="card-cat">QAD · Agentic AI</span></div>
+        <h3>Sales Champion — AOG / Expedite</h3>
+        <p>Detects at-risk and aircraft-on-ground orders in the order book and raises a single, order-level alert to the right owner.</p>
+        <div class="card-metrics"><span class="metric"><b>~90%</b> flagged within SLA</span><span class="metric">1 alert / order</span><span class="metric">~60% less noise</span></div>
+      </article>
+      <article class="card reveal" data-cat="ai platform">
+        <div class="card-top"><span class="card-idx">Q4</span><span class="card-cat">QAD · Agentic AI</span></div>
+        <h3>Trade Compliance Agent</h3>
+        <p>Screens every order line against trade-control rules before shipment and routes exceptions to a human with the evidence attached.</p>
+        <div class="card-metrics"><span class="metric"><b>100%</b> screened pre-ship</span><span class="metric">~95% flag recall</span><span class="metric">audit trail</span></div>
+      </article>
+      <article class="card reveal" data-cat="ai platform">
+        <div class="card-top"><span class="card-idx">Q5</span><span class="card-cat">QAD · Platform</span></div>
+        <h3>Agent Trust &amp; Autonomy Framework</h3>
+        <p>The graduated-autonomy model governing when an agent acts alone, when a human approves, and what evidence every action must leave behind.</p>
+        <div class="card-metrics"><span class="metric"><b>3</b> autonomy tiers</span><span class="metric"><b>100%</b> actions audited</span><span class="metric">platform standard</span></div>
+      </article>
+      <article class="card reveal" data-cat="ai platform">
+        <div class="card-top"><span class="card-idx">Q6</span><span class="card-cat">QAD · Agentic AI</span></div>
+        <h3>Sourcing Champion — RFQ</h3>
+        <p>Runs the request-for-quote loop end to end — issuing RFQs, chasing responses and normalising quotes into a comparable set.</p>
+        <div class="card-metrics"><span class="metric"><b>~65%</b> RFQ cycle time cut</span><span class="metric">auto-normalised quotes</span></div>
+      </article>
+
       <!-- SimStar -->
       <article class="card reveal" data-cat="platform">
         <div class="card-top"><span class="card-idx">S1</span><span class="card-cat">SimStar</span></div>
@@ -1084,13 +1127,24 @@
     </div>
 
     <p class="ai-lead reveal">
-      I've shipped <b>two production AI systems</b> end-to-end and I'm completing a <b>Master's in AI &amp; ML at IIT Kanpur</b>.
-      My working rule: <span class="hl">LLM + RAG where language matters, classical ML where numbers do</span> — and evaluate both with real metrics before they ship.
+      I've shipped <b>production AI systems end-to-end</b> — classical ML, LLM + RAG, and now <b>autonomous agents acting inside enterprise ERP workflows</b> — alongside a <b>Master's in AI &amp; ML at IIT Kanpur</b>.
+      My working rule: <span class="hl">LLM + RAG where language matters, classical ML where numbers do, agents only where the action is reversible and audited</span> — and evaluate all three with real metrics before they ship.
     </p>
 
     <!-- SYSTEMS -->
     <h3 class="ai-subhead reveal"><span>01</span> Systems I've shipped</h3>
     <div class="ai-systems">
+      <div class="ai-sys reveal">
+        <div class="ai-sys-tag">Agentic AI · Tool-calling · QAD Redzone</div>
+        <h4>Champion AI — Persona Agents</h4>
+        <p>Autonomous agents that work a function end to end inside the ERP — procurement, sourcing, sales and trade compliance. They read the system of record, act in the outside world (supplier email, portals, screening), interpret what comes back, and <b>write results back to the ERP</b>. The hard part isn't generation, it's <b>knowing when to stop and ask a human</b>.</p>
+        <div class="ai-sys-metrics">
+          <span class="metric"><b>4</b> personas</span>
+          <span class="metric">graduated autonomy</span>
+          <span class="metric">100% actions audited</span>
+          <span class="metric">ERP write-back</span>
+        </div>
+      </div>
       <div class="ai-sys reveal">
         <div class="ai-sys-tag">Classical ML · Regression</div>
         <h4>Predictive Pricing Engine</h4>
@@ -1129,9 +1183,30 @@
       <div class="flow-step flow-gate"><span class="fs-n">5</span><b>Confidence gate</b><span class="fs-d">answer · or hand off to human</span></div>
     </div>
 
+
+    <!-- AGENT AUTONOMY -->
+    <h3 class="ai-subhead reveal"><span>03</span> How an agent earns autonomy</h3>
+    <p class="ai-lead reveal" style="font-size:16px;margin-bottom:18px">
+      A chatbot that is wrong writes a bad sentence. An <b>agent</b> that is wrong sends a real email to a real supplier, or lets a controlled part ship.
+      So autonomy is <span class="hl">earned in stages, never granted</span> — this is the model I set, and every Champion is built against it.
+    </p>
+    <div class="ai-flow reveal">
+      <div class="flow-step"><span class="fs-n">1</span><b>Preview</b><span class="fs-d">real data, nothing sent</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="fs-n">2</span><b>Validation</b><span class="fs-d">config, mapping, volume guard</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="fs-n">3</span><b>Supervised</b><span class="fs-d">human approves each run</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step flow-gate"><span class="fs-n">4</span><b>Unattended</b><span class="fs-d">audited · reversible · revocable</span></div>
+    </div>
+
     <!-- MODELS & TOOLS -->
-    <h3 class="ai-subhead reveal"><span>03</span> Models &amp; tools I've worked with</h3>
+    <h3 class="ai-subhead reveal"><span>04</span> Models &amp; tools I've worked with</h3>
     <div class="ai-models">
+      <div class="ai-model reveal"><h5>AWS Bedrock</h5><p>Managed frontier models behind an enterprise boundary — customer data never leaves the trust perimeter.</p></div>
+      <div class="ai-model reveal"><h5>Tool calling / function calling</h5><p>What turns a model into an agent: structured calls into the ERP and outside systems, instead of text a human retypes.</p></div>
+      <div class="ai-model reveal"><h5>LLM gateway</h5><p>One routing and governance layer across providers — central control of cost, limits and model choice.</p></div>
+      <div class="ai-model reveal"><h5>Human-in-the-loop design</h5><p>Deciding where a person must sit in the loop — the core product decision in any agentic system.</p></div>
       <div class="ai-model reveal"><h5>GPT-4o</h5><p>Frontier model for the hard ~30% of queries where answer quality matters most.</p></div>
       <div class="ai-model reveal"><h5>GPT-4o-mini</h5><p>Cheap, fast model for intent classification and the easy ~70% of lookups — ~15–20× cheaper per token.</p></div>
       <div class="ai-model reveal"><h5>text-embedding-3-small</h5><p>Turns queries and inventory into vectors for semantic search.</p></div>
@@ -1143,7 +1218,7 @@
     </div>
 
     <!-- METRICS EXPLAINED -->
-    <h3 class="ai-subhead reveal"><span>04</span> The metrics — explained</h3>
+    <h3 class="ai-subhead reveal"><span>05</span> The metrics — explained</h3>
     <div class="ai-metrics">
       <div class="ai-metric reveal">
         <div class="am-head"><h5>MAPE</h5><span class="am-res">~8–10%</span></div>
@@ -1178,12 +1253,12 @@
     </div>
 
     <!-- TIMELINE -->
-    <h3 class="ai-subhead reveal"><span>05</span> What I've learned since 2023</h3>
+    <h3 class="ai-subhead reveal"><span>06</span> What I've learned since 2023</h3>
     <div class="ai-timeline">
       <div class="tl-item reveal"><div class="tl-year">2023</div><div class="tl-body"><b>Foundations.</b> Classical ML and regression, and the discipline of <i>evaluating</i> models — not just building them. Started framing real business problems as ML problems.</div></div>
       <div class="tl-item reveal"><div class="tl-year">2024</div><div class="tl-body"><b>First production model + MS begins.</b> Shipped the predictive pricing engine with shadow-mode validation, and began my M.S. in AI &amp; ML at IIT Kanpur.</div></div>
       <div class="tl-item reveal"><div class="tl-year">2025</div><div class="tl-body"><b>Generative AI, for real.</b> LLMs, RAG and prompt design; built the hybrid assistant and the evaluation stack around it — golden test sets, precision/recall on hand-off, LLM-as-judge.</div></div>
-      <div class="tl-item reveal"><div class="tl-year">2026</div><div class="tl-body"><b>Systems thinking.</b> Model routing and cost-per-resolved-query, and a clear philosophy for hybrid AI: <i>optimise recall on the escalation — trust is the constraint, deflection is the goal within it.</i></div></div>
+      <div class="tl-item reveal"><div class="tl-year">2026</div><div class="tl-body"><b>From assistants to agents.</b> At QAD Redzone, moving from systems that <i>answer</i> to systems that <i>act</i> — autonomous persona agents inside enterprise ERP workflows, and the graduated-autonomy model that decides when an agent may act unsupervised. The lesson carries over: <i>trust is the constraint, autonomy is the goal within it.</i></div></div>
     </div>
 
     <!-- MS VALUE -->
@@ -1209,36 +1284,45 @@
     </div>
     <div class="skills-grid">
       <div class="skill-cat reveal">
-        <div class="ch"><h3>Product &amp; Growth</h3><span class="cnt">08</span></div>
+        <div class="ch"><h3>Product &amp; Growth</h3><span class="cnt">12</span></div>
         <div class="skill-tags">
           <span>Product strategy &amp; roadmap</span><span>Customer acquisition (SEM/PPC, SEO)</span>
           <span>A/B &amp; multivariate testing</span><span>Landing-page &amp; checkout CRO</span>
           <span>Unit economics (CAC · LTV · CVR · ROAS)</span><span>0→1 &amp; MVP development</span>
           <span>RICE / ICE / WSJF prioritisation</span><span>Funnel &amp; cohort analytics</span>
+          <span>Agentic AI product strategy</span><span>Enterprise B2B discovery</span>
+          <span>Platform &amp; API productisation</span><span>Build / buy / integrate strategy</span>
         </div>
       </div>
       <div class="skill-cat reveal">
-        <div class="ch"><h3>AI &amp; Data</h3><span class="cnt">09</span></div>
+        <div class="ch"><h3>AI &amp; Data</h3><span class="cnt">15</span></div>
         <div class="skill-tags">
           <span>AI / LLM product management</span><span>LLMs, RAG, prompt design</span>
           <span>Model evaluation (MAPE, P/R/F1)</span><span>Classical ML (regression)</span>
           <span>Shadow-mode validation</span><span>SQL / PostgreSQL</span>
           <span>Mixpanel</span><span>Metabase</span><span>Google Cloud Platform</span>
+          <span>Agentic AI &amp; multi-agent systems</span><span>Tool calling / function calling</span>
+          <span>AI guardrails &amp; human-in-the-loop</span><span>AI governance &amp; autonomy design</span>
+          <span>AWS Bedrock</span><span>LLM gateway &amp; model routing</span>
         </div>
       </div>
       <div class="skill-cat reveal">
-        <div class="ch"><h3>Leadership &amp; Delivery</h3><span class="cnt">06</span></div>
+        <div class="ch"><h3>Leadership &amp; Delivery</h3><span class="cnt">10</span></div>
         <div class="skill-tags">
           <span>Cross-functional leadership</span><span>Stakeholder management</span>
           <span>Managing competing priorities</span><span>Agile / Scrum / Kanban</span>
           <span>Vendor &amp; team management</span><span>Roadmap comms to C-suite</span>
+          <span>Influence without authority</span><span>Distributed / global teams</span>
+          <span>VP &amp; exec stakeholder alignment</span><span>Technical decision facilitation</span>
         </div>
       </div>
       <div class="skill-cat reveal">
-        <div class="ch"><h3>Platforms &amp; Tools</h3><span class="cnt">07</span></div>
+        <div class="ch"><h3>Platforms &amp; Tools</h3><span class="cnt">14</span></div>
         <div class="skill-tags">
           <span>Odoo ERP</span><span>Salesforce CRM</span><span>Jira</span>
           <span>Figma</span><span>Whimsical</span><span>API / FTP integrations</span><span>RapNet</span>
+          <span>QAD ERP (EE &amp; Adaptive UX)</span><span>Auth0 / SSO</span><span>AWS Bedrock</span>
+          <span>Microsoft Fabric</span><span>iPaaS &amp; integration platforms</span><span>Confluence</span><span>Postman</span>
         </div>
       </div>
     </div>
@@ -1250,6 +1334,14 @@
         <p class="home-sub" style="margin-top:12px">The everyday product-management stack — roadmapping &amp; delivery, design &amp; collaboration, analytics, and CRM.</p>
       </div>
       <div class="tools-grid reveal">
+        <div class="tool"><div class="tool-logo" data-letter="Q"></div><span>QAD ERP</span></div>
+        <div class="tool"><div class="tool-logo" data-letter="A"><img src="https://cdn.simpleicons.org/amazonwebservices" alt="AWS" loading="lazy" onerror="this.remove()" /></div><span>AWS Bedrock</span></div>
+        <div class="tool"><div class="tool-logo" data-letter="A"><img src="https://cdn.simpleicons.org/auth0" alt="Auth0" loading="lazy" onerror="this.remove()" /></div><span>Auth0</span></div>
+        <div class="tool"><div class="tool-logo" data-letter="M"><img src="https://cdn.simpleicons.org/microsoftazure" alt="Microsoft Fabric" loading="lazy" onerror="this.remove()" /></div><span>MS Fabric</span></div>
+        <div class="tool"><div class="tool-logo" data-letter="O"><img src="https://cdn.simpleicons.org/openai" alt="OpenAI" loading="lazy" onerror="this.remove()" /></div><span>OpenAI</span></div>
+        <div class="tool"><div class="tool-logo" data-letter="P"><img src="https://cdn.simpleicons.org/postman" alt="Postman" loading="lazy" onerror="this.remove()" /></div><span>Postman</span></div>
+        <div class="tool"><div class="tool-logo" data-letter="P"><img src="https://cdn.simpleicons.org/postgresql" alt="PostgreSQL" loading="lazy" onerror="this.remove()" /></div><span>PostgreSQL</span></div>
+        <div class="tool"><div class="tool-logo" data-letter="O"><img src="https://cdn.simpleicons.org/odoo" alt="Odoo" loading="lazy" onerror="this.remove()" /></div><span>Odoo ERP</span></div>
         <div class="tool"><div class="tool-logo" data-letter="J"><img src="https://cdn.simpleicons.org/jira" alt="Jira" loading="lazy" onerror="this.remove()" /></div><span>Jira</span></div>
         <div class="tool"><div class="tool-logo" data-letter="C"><img src="https://cdn.simpleicons.org/confluence" alt="Confluence" loading="lazy" onerror="this.remove()" /></div><span>Confluence</span></div>
         <div class="tool"><div class="tool-logo" data-letter="L"><img src="https://cdn.simpleicons.org/linear" alt="Linear" loading="lazy" onerror="this.remove()" /></div><span>Linear</span></div>
@@ -1467,7 +1559,13 @@
 <footer>
   <div class="wrap foot-inner">
     <div>© 2026 Yashwanth Ravi · Staff Product Manager, Applied AI</div>
-    <div class="up" id="toTop">Back to top ↑</div>
+    <div class="foot-r">
+      <div class="visits" id="visits" title="Live visit count">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span><b id="visitCount">—</b> portfolio visits</span>
+      </div>
+      <div class="up" id="toTop">Back to top ↑</div>
+    </div>
   </div>
 </footer>
 
@@ -1663,11 +1761,79 @@
   window.addEventListener('resize', updateNextHint);
   if(nextHint) nextHint.addEventListener('click', ()=> goRelative(1));
 
+
+  // ---- live visitor counter ----
+  (function(){
+    var box = document.getElementById('visits'), out = document.getElementById('visitCount');
+    if(!box || !out) return;
+    var BASE = 'https://abacus.jasoncameron.dev';
+    var NS = 'yashwanth-ravi-portfolio', KEY = 'visits';
+    var STORE = 'yr_visit_ts', WINDOW_MS = 12*60*60*1000;
+    var fresh = true;
+    try {
+      var last = localStorage.getItem(STORE);
+      if(last && (Date.now() - parseInt(last,10)) < WINDOW_MS) fresh = false;
+      if(fresh) localStorage.setItem(STORE, String(Date.now()));
+    } catch(e){ /* private mode: count the visit */ }
+    var url = BASE + (fresh ? '/hit/' : '/get/') + NS + '/' + KEY;
+    fetch(url, {cache:'no-store'})
+      .then(function(r){ if(!r.ok) throw 0; return r.json(); })
+      .then(function(d){
+        var n = (d && typeof d.value === 'number') ? d.value : null;
+        if(n === null) return;
+        out.textContent = n.toLocaleString();
+        box.classList.add('on');
+      })
+      .catch(function(){ /* leave the counter hidden rather than show a wrong number */ });
+  })();
+
   // ---- to top ----
   document.getElementById('toTop').addEventListener('click', ()=> scrollTo({top:0, behavior:'smooth'}));
 
   // ---- project detail data ----
   const projectData = {
+    Q1: { co:'QAD Redzone · Champion AI', cat:'Agentic AI · Supply Chain',
+      problem:'Manufacturers lose days chasing suppliers for purchase-order confirmations, delivery dates and changes. The work is high-volume, low-judgment and sits on buyers who should be managing exceptions, not inboxes.',
+      approach:'Defined the Procurement Champion as an autonomous agent that lives inside the ERP workflow rather than beside it — reading open POs, contacting suppliers, interpreting replies and writing confirmed data back. I set the boundary of what it decides alone versus what it escalates.',
+      metrics:[['~70%','Follow-ups automated'],['days → min','Supplier response loop'],['1st','Live purchasing agent'],['100%','Actions audited']],
+      role:'Product direction — agent scope, autonomy boundary and ERP write-back model.',
+      tools:'QAD ERP · AWS Bedrock · LLM tool-calling · integration platform',
+      impact:'Moved buyers from chasing to exception-handling, and proved agents can write to a system of record safely.' },
+    Q2: { co:'QAD Redzone · Champion AI', cat:'Platform · Self-Serve',
+      problem:'Every new customer workflow needed an engineer. That capped how fast agents could be rolled out and turned a product into a services business — the constraint was delivery capacity, not demand.',
+      approach:'Shipped a three-part builder — a pre-built template library for common flows, a custom builder for the rest, and an LLM assistant that drafts a working automation from a plain-language description. Customers configure; engineering stops being in the path.',
+      metrics:[['0','Eng tickets per new flow'],['&lt;1 day','Time to first automation'],['~85%','Flows built by customers'],['Self-serve','Delivery model']],
+      role:'Owned the initiative end to end — problem framing, builder model, governance and rollout.',
+      tools:'LLM assistant · template engine · config audit · role-based admin',
+      impact:'Changed the unit economics of rollout: capability scales with customers, not with headcount.' },
+    Q3: { co:'QAD Redzone · Champion AI', cat:'Agentic AI · Sales',
+      problem:'Urgent and at-risk orders — including aircraft-on-ground situations where a grounded aircraft costs thousands an hour — were surfacing late, buried in order-book noise and per-line email alerts nobody read.',
+      approach:'Scoped the agent to detect and notify rather than act, deliberately: one order-level alert showing only the flagged lines, routed to the owner who can act. Earning trust in the signal came before automating the response.',
+      metrics:[['~90%','Flagged within SLA'],['1','Alert per order, not per line'],['~60%','Less inbox noise'],['Phase 1','Notify before act']],
+      role:'Product lead — discovery through launch, including the deliberate scope limit.',
+      tools:'QAD ERP · order-book signals · alerting · integration platform',
+      impact:'Made the agent credible before making it autonomous — the sequencing that decides whether users trust it.' },
+    Q4: { co:'QAD Redzone · Champion AI', cat:'Agentic AI · Compliance',
+      problem:'Trade-control screening is mandatory, manual and unforgiving — a missed restricted party or control classification is a regulatory event, not a defect. Manual screening does not scale with order volume.',
+      approach:'Designed the agent to screen every line pre-shipment and escalate exceptions with the evidence attached, so a human reviews a decision rather than redoing the research. Tuned explicitly for recall: a false alarm costs minutes, a miss costs a licence.',
+      metrics:[['100%','Orders screened pre-ship'],['~95%','Flag recall'],['Evidence','Attached to every escalation'],['Full','Audit trail']],
+      role:'Product direction — risk posture, escalation design and evidence model.',
+      tools:'QAD ERP · trade-control rules · LLM reasoning · human-in-the-loop',
+      impact:'Compliance coverage that scales with volume, with a defensible record behind every call.' },
+    Q5: { co:'QAD Redzone · Champion AI', cat:'Platform · AI Governance',
+      problem:'Agents that act on live customer data raise a question no feature spec answers: when is an AI allowed to act on its own? Without a shared answer, every team invents its own — and the weakest one sets the real risk.',
+      approach:'Defined a graduated-autonomy model: agents earn autonomy rather than being granted it. Preview on real data, validation gates before anything leaves the system, a mandatory supervised run-in, and only then unattended operation — with every action audited and reversible.',
+      metrics:[['3','Autonomy tiers'],['100%','Actions audited'],['Reversible','Config with rollback'],['Standard','Every Champion built to it']],
+      role:'Defined the framework and drove adoption across teams I do not own.',
+      tools:'Governance model · validation gates · audit trail · role-based enforcement',
+      impact:'The reusable platform primitive — it is what lets every future agent ship without relitigating safety.' },
+    Q6: { co:'QAD Redzone · Champion AI', cat:'Agentic AI · Sourcing',
+      problem:'Sourcing teams run RFQs through email and spreadsheets — issuing requests, chasing non-responders, then hand-normalising quotes that arrive in a dozen incompatible shapes before they can be compared at all.',
+      approach:'Extended the persona-agent model to sourcing: the agent issues RFQs, follows up on silence, and normalises returned quotes into a comparable set so the buyer spends their time deciding rather than collating.',
+      metrics:[['~65%','RFQ cycle time cut'],['Auto','Quote normalisation'],['0','Manual chase emails'],['Reuses','Procurement agent core']],
+      role:'Product direction — extending the persona pattern to a second function.',
+      tools:'QAD ERP · supplier portals · LLM extraction · integration platform',
+      impact:'Proved the persona-agent model generalises beyond its first function — the test of a platform.' },
     S1: { co:'SimStar · Stargems Group', cat:'Platform · B2B',
       problem:'A diamond & jewelry business spanning Hong Kong, India, USA and Dubai ran on spreadsheets and disconnected tools across sales, inventory, ops, accounts and compliance — slow, error-prone, with no single source of truth.',
       approach:'I reframed a broad "modernise everything" brief into a sequenced 9-product portfolio and made deliberate build/buy/integrate calls. Odoo ERP became the automation-first backbone, configured for 4 countries and 8 teams.',
@@ -1870,7 +2036,7 @@
     { keys:['current','now','presently','qad','redzone','champion ai','current role','current job','where does he work','current company','agentic','supply chain'], a:"He's currently <b>Staff Product Manager, Applied AI at QAD Redzone</b> since Aug 2026, owning product direction for <b>Champion AI</b> — QAD's agentic AI platform for supply chain. He defines what autonomous agents do inside enterprise ERP workflows, set the graduated-autonomy trust model that governs when an agent may act on live customer data, and owns build/buy/integrate judgment across the AI and ERP stack." },
     { keys:['magicbricks','times internet','earlier','before simstar','real estate','realestate','growth','acquisition history'], a:"Before SimStar, he was <b>Product Manager, Growth &amp; Acquisition at Magicbricks (Times Internet)</b> (2019–2024). He built a PG/Co-living vertical 0→1 to <b>20M+ monthly users</b> and 1.5M+ listings, lifted checkout conversion ~9%→~11% (~+22%, ≈+$1.25M/yr), hit &gt;80% subscription renewal, and cut CAC ~20%." },
     { keys:['experience','work history','career','roles','jobs','companies worked'], a:"Yashwanth has ~7 years across three companies: <b>QAD Redzone</b> — Staff PM, Applied AI, 2026–present (agentic AI for supply chain); <b>SimStar (Stargems Group)</b> — Senior PM, 2024–2026 (enterprise, AI, 0→1 platform); and <b>Magicbricks (Times Internet)</b> — PM Growth &amp; Acquisition, 2019–2024 (scaled a consumer vertical to 20M+ users). Open the <b>Experience</b> tab for the full detail." },
-    { keys:['project','projects','built','shipped','products','what has he built','portfolio work'], a:"He's shipped <b>12 products</b>. At SimStar: an Odoo ERP core, the simstar.co site, an AI pricing engine, an LLM+RAG WhatsApp assistant, a video dashboard, RapNet marketplace sync, offer management, pair-stone matching, and a Diamond Digital Passport. At Magicbricks: a checkout CRO programme, a subscription MVP, and an acquisition engine. Each tile in the <b>Projects</b> tab opens full metrics." },
+    { keys:['project','projects','built','shipped','products','what has he built','portfolio work'], a:"He's shipped <b>18 products</b>. At QAD Redzone: the Procurement, Sourcing and Sales persona agents, a Trade Compliance agent, Self-Serve Automations, and the agent trust &amp; autonomy framework. At SimStar: an Odoo ERP core, the simstar.co site, an AI pricing engine, an LLM+RAG WhatsApp assistant, a video dashboard, RapNet marketplace sync, offer management, pair-stone matching, and a Diamond Digital Passport. At Magicbricks: a checkout CRO programme, a subscription MVP, and an acquisition engine. Each tile in the <b>Projects</b> tab opens full metrics." },
     { keys:['simstar','stargems','diamond','jewelry','jewellery','previous','last company','before qad'], a:"Before QAD, he was <b>Senior Product Manager at SimStar (Stargems Group)</b> (Jul 2024 – Oct 2026) — a 0→1 digital platform for a diamond &amp; jewelry enterprise across Hong Kong, India, USA &amp; Dubai. He shipped 9 products across 4 countries, cut manual effort ~40%, and delivered 2 production AI systems, while leading 2 PMs plus engineering, design, QA, data and vendors." },
     { keys:['pricing','price','pricing engine','regression','mape','ml model'], a:"The <b>AI Pricing Engine</b> is a classical-ML (regression) model that prices diamonds from market + stone features. He validated it in <b>shadow mode</b> against human pricers before go-live: ~90%+ accuracy (MAPE ~8–10%), 100% of manual pricing removed, ~8,000+ stones priced per quarter — days → seconds." },
     { keys:['chatbot','llm','rag','whatsapp','assistant','generative','gpt','bot','hand-off','handoff','deflection'], a:"The <b>Hybrid AI Support Assistant</b> is an LLM + RAG WhatsApp bot with a confidence-gated human hand-off. It uses GPT-4o / GPT-4o-mini with text-embedding-3-small and pgvector, grounded in live inventory to prevent hallucination. Results: deflection ~20%→~50–60%, ~92% answer correctness, ~95% hand-off recall, and NPS ~7→&gt;9." },
