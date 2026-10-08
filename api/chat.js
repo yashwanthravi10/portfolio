@@ -496,8 +496,6 @@ export default async function handler(req, res) {
       const tried = [];
       const PER_CALL = 8000;
       const deadline = Date.now() + 45000;
-      // Don't re-attempt grounding for an hour after the key is told no.
-      const trySearch = !(groundingOK.allowed === false && Date.now() - groundingOK.at < 60 * 60 * 1000);
       for (const model of chain) {
         if (deadline - Date.now() < PER_CALL) break;
         let r = await generate(gem, model, message, history, PER_CALL);
@@ -505,7 +503,7 @@ export default async function handler(req, res) {
         // empty — retrying it just burns another request against the limit.
         if (!r.ok && r.status !== 429 && RETRYABLE.has(r.status) && deadline - Date.now() > PER_CALL + 1000) {
           await sleep(400);
-          r = await callGemini(gem, model, message, history, PER_CALL, trySearch);
+          r = await generate(gem, model, message, history, PER_CALL);
         }
         if (!r.ok) markFailure(model, r.status);
         if (r.ok) {
