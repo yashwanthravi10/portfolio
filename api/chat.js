@@ -34,7 +34,7 @@ You additionally know Yashwanth's background, set out below. When a question IS 
 
 Style: warm, direct and concise — usually 1-4 sentences, longer only when the question genuinely needs it. Show working for maths. You may use **bold** for emphasis.
 
-Your knowledge has a training cutoff and you have no live web access, so for anything recent or fast-moving, answer with what you know and say it may be out of date.
+You HAVE live web access through Google Search grounding. For anything current or fast-moving — weather, news, prices, sports, "today", "latest", "right now" — search and answer from what you find, and say what the information is as of. Never tell a visitor you cannot access live data or ask them to go and check a weather app or search engine themselves: look it up and answer. Only if a search genuinely returns nothing useful should you say so plainly.
 
 If a visitor wants to contact, hire or work with Yashwanth, tell them they can click the "Email Yashwanth" button in this chat to send him a message directly, or reach him at yashwanthgangur@gmail.com or on LinkedIn.
 
@@ -166,8 +166,9 @@ async function pickGeminiModel(key) {
   };
 }
 
-async function callGemini(key, model, message, history, timeoutMs) {
+async function callGemini(key, model, message, history, timeoutMs, useSearch) {
   timeoutMs = timeoutMs || 15000;
+  if (useSearch === undefined) useSearch = true;
   const contents = [];
   history.slice(-6).forEach((m) => {
     if (m && (m.role === 'user' || m.role === 'assistant') && m.content) {
@@ -184,11 +185,11 @@ async function callGemini(key, model, message, history, timeoutMs) {
     r = await fetch(`${GEMINI_BASE}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: JSON.stringify(Object.assign({
         systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents,
         generationConfig: { temperature: 0.4, maxOutputTokens: 800 },
-      }),
+      }, useSearch ? { tools: [{ google_search: {} }] } : {})),
       signal: timeoutSignal(timeoutMs),
     });
     text = await r.text();
@@ -207,10 +208,18 @@ async function callGemini(key, model, message, history, timeoutMs) {
   try { json = JSON.parse(text); } catch (_) {}
   const parts = json?.candidates?.[0]?.content?.parts || [];
   const reply = parts.map((p) => p.text || '').join('').trim();
+  const gm = json?.candidates?.[0]?.groundingMetadata || null;
+  const sources = (gm?.groundingChunks || [])
+    .map((c) => ({ title: c?.web?.title || '', uri: c?.web?.uri || '' }))
+    .filter((x) => x.uri)
+    .slice(0, 3);
   return {
     ok: r.ok && Boolean(reply),
     status: r.status,
     reply: reply || null,
+    searched: Boolean(gm && (gm.webSearchQueries || gm.groundingChunks)),
+    queries: gm?.webSearchQueries || [],
+    sources,
     error: (json?.error?.message || (r.ok ? 'empty reply' : text) || '').slice(0, 250),
     blocked: json?.promptFeedback?.blockReason || json?.candidates?.[0]?.finishReason || null,
   };
@@ -328,6 +337,34 @@ export default async function handler(req, res) {
       return health(res, full, full || url.searchParams.get('test') === '1');
     }
 
+    // Grounding check: does live Google Search actually work on this key?
+    if (url.searchParams.get('grounded') === '1') {
+      const gkey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim();
+      if (!gkey) return res.status(200).json({ error: 'no key' });
+      const q = url.searchParams.get('q') || 'What is the weather in Bengaluru, India right now?';
+      const picked = await pickGeminiModel(gkey);
+      const model = (picked.models && orderModels(picked.models)[0]) || 'gemini-3.8-flash';
+      const withSearch = await callGemini(gkey, model, q, [], 20000, true);
+      const out = {
+        model,
+        withSearch: {
+          httpStatus: withSearch.status,
+          ok: withSearch.ok,
+          searched: withSearch.searched,
+          queries: withSearch.queries,
+          sources: withSearch.sources,
+          reply: (withSearch.reply || '').slice(0, 400),
+          error: withSearch.ok ? null : withSearch.error,
+        },
+      };
+      out.verdict = withSearch.ok && withSearch.searched
+        ? 'Live web search IS working — the model ran a real Google query for this answer.'
+        : (withSearch.status === 400
+            ? 'The google_search tool was rejected (HTTP 400). Grounding may need billing enabled on the Google Cloud project.'
+            : 'No search was performed. See withSearch above.');
+      return res.status(200).json(out);
+    }
+
     // Lightweight provider/model info for the chat header. Lists models but
     // never generates, so it costs no generation quota.
     if (url.searchParams.get('info') === '1') {
@@ -395,15 +432,25 @@ export default async function handler(req, res) {
       const deadline = Date.now() + 45000;
       for (const model of chain) {
         if (deadline - Date.now() < PER_CALL) break;
-        let r = await callGemini(gem, model, message, history, PER_CALL);
+        let r = await callGemini(gem, model, message, history, PER_CALL, true);
+        // A 400 here normally means this model or tier won't accept the
+        // google_search tool. Retry ungrounded rather than losing the answer.
+        if (!r.ok && r.status === 400 && deadline - Date.now() > PER_CALL) {
+          r = await callGemini(gem, model, message, history, PER_CALL, false);
+          if (r.ok) r.searchUnavailable = true;
+        }
         // One quick retry, but only while there is room for it.
         if (!r.ok && RETRYABLE.has(r.status) && deadline - Date.now() > PER_CALL + 1000) {
           await sleep(400);
-          r = await callGemini(gem, model, message, history, PER_CALL);
+          r = await callGemini(gem, model, message, history, PER_CALL, true);
         }
         if (r.ok) {
           lastGood = { model, at: Date.now() };
-          return res.status(200).json({ reply: r.reply, provider: 'gemini', model });
+          return res.status(200).json({
+            reply: r.reply, provider: 'gemini', model,
+            searched: Boolean(r.searched), sources: r.sources || [],
+            searchUnavailable: Boolean(r.searchUnavailable),
+          });
         }
         tried.push(model + ':' + r.status);
         errors.gemini = model + ' → HTTP ' + r.status + ': ' + r.error + (r.blocked ? ' [' + r.blocked + ']' : '');
