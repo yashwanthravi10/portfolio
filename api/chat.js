@@ -2,9 +2,11 @@
 //  /api/chat.js   —   LLM backend for "Yashwanth's AI" (portfolio chatbot)
 //  Vercel Serverless Function (Node.js).
 //
-//  PROVIDERS (first one with a key configured wins):
-//    1. Google Gemini   — env var GEMINI_API_KEY   (free: https://aistudio.google.com/apikey)
-//    2. Groq            — env var GROQ_API_KEY     (free: https://console.groq.com/keys)
+//  PROVIDER: Google Gemini only — env var GEMINI_API_KEY
+//    Free key: https://aistudio.google.com/apikey
+//    By explicit choice this backend talks to Google and nothing else. If
+//    Gemini is unavailable, the site falls back to its built-in answers
+//    rather than routing the question to another vendor.
 //
 //  SETUP:
 //    Vercel → Settings → Environment Variables → add the key, tick ALL
@@ -19,8 +21,9 @@
 //  WHY MODELS ARE DISCOVERED AT RUNTIME:
 //    This chatbot previously broke silently because a hardcoded model
 //    (llama-3.3-70b-versatile) was decommissioned and every request 404'd.
-//    Both providers below now list their available models and pick the best
-//    one, so a deprecation degrades gracefully instead of going dead quiet.
+//    The function now lists the Gemini models the key can actually reach and
+//    picks the best, so a deprecation degrades gracefully instead of going
+//    dead quiet.
 // ============================================================================
 
 const SYSTEM_PROMPT = `You are "Yashwanth's AI" — the assistant embedded on Yashwanth Ravi's personal portfolio website. Answer visitors' questions about Yashwanth accurately, in a warm, professional tone, and concisely (usually 1-4 sentences). Use ONLY the facts below. If you don't know something or it's unrelated to Yashwanth, say so briefly and steer back to his work. Never invent facts, employers, dates, or numbers. You may use **bold** for emphasis.
@@ -67,7 +70,6 @@ Recommended for the Indian Armed Forces three times via the SSB (Services Select
 Email yashwanthgangur@gmail.com, LinkedIn linkedin.com/in/yashwanth-ravi. There is also a "Get in touch" form on the site. Do not provide a phone number — he is reachable by email, LinkedIn or the contact form only. He is open to senior product roles and interesting conversations.`;
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 // Warm-lambda cache so we don't list models on every request.
 let modelCache = { provider: null, models: null, at: 0 };
@@ -163,51 +165,16 @@ async function callGemini(key, model, message, history) {
 }
 
 // ---------------------------------------------------------------------------
-//  Groq (fallback provider)
-// ---------------------------------------------------------------------------
-const GROQ_PREFERRED = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b'];
-
-async function callGroq(key, model, message, history) {
-  const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
-  history.slice(-6).forEach((m) => {
-    if (m && (m.role === 'user' || m.role === 'assistant') && m.content) {
-      messages.push({ role: m.role, content: String(m.content).slice(0, 1500) });
-    }
-  });
-  messages.push({ role: 'user', content: String(message).slice(0, 1000) });
-
-  const payload = { model, messages, temperature: 0.4, max_tokens: 800 };
-  if (model.startsWith('openai/gpt-oss')) payload.reasoning_effort = 'low';
-
-  const r = await fetch(GROQ_URL, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  const text = await r.text();
-  let json = null;
-  try { json = JSON.parse(text); } catch (_) {}
-  const reply = json?.choices?.[0]?.message?.content?.trim();
-  return {
-    ok: r.ok && Boolean(reply),
-    status: r.status,
-    reply: reply || null,
-    error: (json?.error?.message || (r.ok ? 'empty reply' : text) || '').slice(0, 250),
-  };
-}
-
-// ---------------------------------------------------------------------------
 //  Health check — GET /api/chat?health=1
 // ---------------------------------------------------------------------------
 async function health(res) {
   const gem = process.env.GEMINI_API_KEY;
-  const groq = process.env.GROQ_API_KEY;
   const out = {
     endpoint: 'ok',
     runtime: 'node ' + process.version,
+    policy: 'Google Gemini only — no other LLM vendor is called.',
     providers: {
       gemini: { keyPresent: Boolean(gem), keyLength: gem ? gem.length : 0, keyHasWhitespace: gem ? gem !== gem.trim() : false },
-      groq: { keyPresent: Boolean(groq), keyLength: groq ? groq.length : 0, keyHasWhitespace: groq ? groq !== groq.trim() : false },
     },
   };
 
@@ -243,35 +210,21 @@ async function health(res) {
         out.providers.gemini.testOk = false;
         out.providers.gemini.error = last.error || 'all candidate models failed';
         out.providers.gemini.diagnosis = RETRYABLE.has(last.status)
-          ? 'Every candidate Gemini model is temporarily busy or rate-limited (HTTP ' + last.status + '). This is Google-side capacity, not your key — it usually clears on its own. Groq is serving in the meantime.'
+          ? 'Every candidate Gemini model is temporarily busy or rate-limited (HTTP ' + last.status + '). This is Google-side capacity, not your key — it usually clears on its own. The site serves its built-in answers until it does.'
           : 'Gemini rejected the request — see error above.';
       }
     }
-  }
-
-  if (groq) {
-    const t = await callGroq(groq.trim(), GROQ_PREFERRED[0], 'Reply with the single word: ok', []);
-    out.providers.groq.testStatus = t.status;
-    out.providers.groq.testOk = t.ok;
-    out.providers.groq.model = GROQ_PREFERRED[0];
-    if (!t.ok) out.providers.groq.error = t.error;
   }
 
   if (out.providers.gemini.testOk) {
     out.activeProvider = 'gemini';
     out.activeModel = out.providers.gemini.chosenModel;
     out.diagnosis = 'Healthy — answering on Gemini (' + out.activeModel + ').';
-  } else if (out.providers.groq.testOk) {
-    out.activeProvider = 'groq';
-    out.activeModel = GROQ_PREFERRED[0];
-    out.diagnosis = gem
-      ? 'Gemini is configured but not working (see providers.gemini.error); falling back to Groq (' + out.activeModel + ').'
-      : 'Healthy — answering on Groq (' + out.activeModel + '). Add GEMINI_API_KEY to use Gemini instead.';
   } else {
     out.activeProvider = null;
-    out.diagnosis = (gem || groq)
-      ? 'No provider is working — the chatbot is serving built-in answers. See providers above for the exact error.'
-      : 'No API key is configured on this deployment. Add GEMINI_API_KEY (or GROQ_API_KEY) in Vercel → Settings → Environment Variables, then REDEPLOY.';
+    out.diagnosis = gem
+      ? 'Gemini is configured but not answering — the chatbot is serving built-in answers. See providers.gemini for the exact error.'
+      : 'No GEMINI_API_KEY is configured on this deployment. Add it in Vercel → Settings → Environment Variables, then REDEPLOY.';
   }
   return res.status(200).json(out);
 }
@@ -288,7 +241,6 @@ export default async function handler(req, res) {
     // never generates, so it costs no generation quota.
     if (url.searchParams.get('info') === '1') {
       const gem = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim();
-      const groq = process.env.GROQ_API_KEY && process.env.GROQ_API_KEY.trim();
       if (gem) {
         let models = (modelCache.provider === 'gemini' && Date.now() - modelCache.at < CACHE_MS)
           ? modelCache.models : null;
@@ -303,7 +255,6 @@ export default async function handler(req, res) {
           return res.status(200).json({ provider: 'gemini', model: models[0] });
         }
       }
-      if (groq) return res.status(200).json({ provider: 'groq', model: GROQ_PREFERRED[0] });
       return res.status(200).json({ provider: null, model: null });
     }
 
@@ -320,14 +271,12 @@ export default async function handler(req, res) {
     }
 
     const gem = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim();
-    const groq = process.env.GROQ_API_KEY && process.env.GROQ_API_KEY.trim();
-    if (!gem && !groq) {
+    if (!gem) {
       return res.status(503).json({ error: 'LLM not configured', reason: 'no_api_key' });
     }
 
     const errors = {};
 
-    // --- provider 1: Gemini ---
     if (gem) {
       let models = (modelCache.provider === 'gemini' && Date.now() - modelCache.at < CACHE_MS)
         ? modelCache.models : null;
@@ -349,19 +298,9 @@ export default async function handler(req, res) {
       }
     }
 
-    // --- provider 2: Groq ---
-    if (groq) {
-      for (const model of GROQ_PREFERRED) {
-        const r = await callGroq(groq, model, message, history);
-        if (r.ok) return res.status(200).json({ reply: r.reply, provider: 'groq', model });
-        errors.groq = 'HTTP ' + r.status + ': ' + r.error;
-        if (r.status === 401 || r.status === 403) break;
-      }
-    }
-
     return res.status(502).json({
       error: 'LLM request failed',
-      reason: 'all_providers_failed',
+      reason: 'gemini_unavailable',
       errors,
       hint: 'Open /api/chat?health=1 for a full diagnosis.',
     });

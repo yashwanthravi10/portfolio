@@ -612,6 +612,7 @@
   .ai-powered { display: flex; align-items: center; justify-content: center; gap: 6px;
     padding: 7px 10px 9px; font-family:'Space Mono',monospace; font-size: 10px; letter-spacing: .04em;
     color: var(--muted-2); border-top: 1px solid var(--line); }
+  .ai-powered[hidden] { display: none; }
   .ai-powered img { width: 11px; height: 11px; display: block; }
   .ai-powered b { color: var(--muted); font-weight: 400; }
   .ai-close { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: var(--ink);
@@ -2096,13 +2097,11 @@
       }
       return 'Gemini';
     }
-    if(/gpt-oss/.test(id)) return 'GPT-OSS '+((id.match(/(\d+)b/)||[])[1]||'')+'B';
-    if(/qwen/.test(id)) return 'Qwen';
     return id;
   }
+  // Google only, by explicit choice. Nothing else is ever shown or called.
   const AI_PROVIDERS = {
-    gemini: { name:'Google Gemini', icon:'https://cdn.simpleicons.org/googlegemini' },
-    groq:   { name:'Groq',          icon:null }
+    gemini: { name:'Google Gemini', icon:'https://cdn.simpleicons.org/googlegemini' }
   };
 
   // Shows "Powered by <provider> <model>" with the provider's mark, but only
