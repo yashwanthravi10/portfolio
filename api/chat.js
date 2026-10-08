@@ -52,7 +52,7 @@ Jira, Confluence, Linear, Asana, Trello, Notion, Figma, Miro, Slack, Amplitude, 
 Recommended for the Indian Armed Forces three times via the SSB (Services Selection Board): All-India Rank 1 for the Indian Army (Technical entry), recommended again at AIR 17, and AIR 3 for the Indian Coast Guard. The SSB is a demanding 5-day officer-selection process assessing 15 Officer-Like Qualities. Competitive footballer: represented national level in Class 10, played KSFA (Karnataka State Football Association) divisions A-D and leagues TAL/NBL, for clubs Spartans FC, Bangalore City FC and Football Academy of Bangalore. Volunteers with the Indian Red Cross Youth Wing and served as a COVID warrior.
 
 === CONTACT ===
-Email yashwanthgangur@gmail.com, phone +91 89047 74704, LinkedIn linkedin.com/in/yashwanth-ravi. There is also a "Get in touch" form on the site. He is open to senior product roles and interesting conversations.`;
+Email yashwanthgangur@gmail.com, LinkedIn linkedin.com/in/yashwanth-ravi. There is also a "Get in touch" form on the site. Do not provide a phone number — he is reachable by email, LinkedIn or the contact form only. He is open to senior product roles and interesting conversations.`;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
