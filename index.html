@@ -788,6 +788,14 @@
 
   ::selection { background: color-mix(in srgb, var(--accent) 22%, transparent); color: inherit; }
 
+  .cform-closed { border: 1px solid var(--line); border-left: 2px solid var(--caution);
+    border-radius: 10px; padding: 14px 16px; margin: 4px 0 22px; background: var(--surface-2); }
+  .cform-closed b { display: block; font-size: 14.5px; margin-bottom: 5px; }
+  .cform-closed span { display: block; color: var(--muted); font-size: 14px; line-height: 1.6; }
+  .cform-closed a { color: var(--accent); }
+  .cform.is-closed { opacity: .5; }
+  .cform.is-closed input, .cform.is-closed textarea, .cform.is-closed button { cursor: not-allowed; }
+
   /* ---------- polish ---------- */
   /* reading progress — also tells you how long a section is */
   .progress { position: fixed; top: 0; left: 0; height: 2px; width: 0%; z-index: 120;
@@ -2305,27 +2313,41 @@
 
   // ---- contact form (opens in modal, emails via FormSubmit) ----
   const CONTACT_EMAIL = 'yashwanthgangur@gmail.com';
+  // Set to true to accept messages through the form again. While false the
+  // form is shown but inert: fields and button disabled, submit handler and
+  // the network call both short-circuited.
+  const CONTACT_FORM_ENABLED = false;
   function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function contactFormHTML(){
+    const off = !CONTACT_FORM_ENABLED;
+    const dis = off ? ' disabled' : '';
+    const notice = off ? `<div class="cform-closed">
+        <b>The message form is closed for now.</b>
+        <span>I'm not taking enquiries through the site at the moment. For anything worth a conversation, reach me on
+        <a href="https://linkedin.com/in/yashwanth-ravi" target="_blank" rel="noopener">LinkedIn</a>
+        or at <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>.</span>
+      </div>` : '';
     return `<div class="m-eyebrow"><span class="m-chip">Contact</span></div>
       <div class="m-title" style="font-size:30px">Get in touch</div>
-      <p style="color:var(--muted);font-size:15px;margin:2px 0 22px">Tell me about the role or problem — I'll get back to you within 24 hours.</p>
-      <form id="contactForm" class="cform" novalidate>
+      ${off ? '' : `<p style="color:var(--muted);font-size:15px;margin:2px 0 22px">Tell me about the role or problem — I'll get back to you within 24 hours.</p>`}
+      ${notice}
+      <form id="contactForm" class="cform${off ? ' is-closed' : ''}" novalidate${off ? ' aria-disabled="true"' : ''}>
         <div class="cform-row">
-          <label>Name<input type="text" name="name" required placeholder="Your name" /></label>
-          <label>Email<input type="email" name="email" required placeholder="you@company.com" /></label>
+          <label>Name<input type="text" name="name" required placeholder="Your name"${dis} /></label>
+          <label>Email<input type="email" name="email" required placeholder="you@company.com"${dis} /></label>
         </div>
-        <label>Company / Subject <span>(optional)</span><input type="text" name="company" placeholder="Company or topic" /></label>
-        <label>Message<textarea name="message" rows="5" required placeholder="What would you like to discuss?"></textarea></label>
+        <label>Company / Subject <span>(optional)</span><input type="text" name="company" placeholder="Company or topic"${dis} /></label>
+        <label>Message<textarea name="message" rows="5" required placeholder="What would you like to discuss?"${dis}></textarea></label>
         <input type="text" name="_honey" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true" />
         <div class="cform-foot">
-          <button type="submit" class="cta-btn" id="cformBtn">Send message →</button>
+          <button type="submit" class="cta-btn" id="cformBtn"${dis}>${off ? 'Sending is turned off' : 'Send message'}</button>
           <span class="cform-status" id="cformStatus"></span>
         </div>
       </form>`;
   }
   async function handleContactSubmit(e){
     e.preventDefault();
+    if(!CONTACT_FORM_ENABLED) return;   // inert: no request is made
     const form = e.currentTarget;
     const btn = document.getElementById('cformBtn');
     const status = document.getElementById('cformStatus');
@@ -2355,7 +2377,7 @@
   function openContactForm(){
     openModal(contactFormHTML());
     const f = document.getElementById('contactForm');
-    if(f){ f.addEventListener('submit', handleContactSubmit); setTimeout(()=>{ const n=f.querySelector('input[name=name]'); if(n) n.focus(); }, 60); }
+    if(f && CONTACT_FORM_ENABLED){ f.addEventListener('submit', handleContactSubmit); setTimeout(()=>{ const n=f.querySelector('input[name=name]'); if(n) n.focus(); }, 60); }
   }
   document.querySelectorAll('.open-contact').forEach(btn=>{
     btn.addEventListener('click', e=>{ e.preventDefault(); if(typeof mm!=='undefined') mm.classList.remove('open'); openContactForm(); });
@@ -2587,12 +2609,12 @@
   }
   function aiOfferEmail(){
     const d=document.createElement('div'); d.className='ai-msg bot';
-    d.innerHTML = 'Happy to put you in touch — this opens a short form that emails Yashwanth directly. He replies within 24 hours.';
+    d.innerHTML = 'The message form on this site is closed at the moment. The best way to reach Yashwanth is <a href="https://linkedin.com/in/yashwanth-ravi" target="_blank" rel="noopener">LinkedIn</a>, or email <a href="mailto:yashwanthgangur@gmail.com">yashwanthgangur@gmail.com</a>.';
     aiBody.appendChild(d);
     const wrap=document.createElement('div'); wrap.className='ai-suggest'; wrap.style.paddingTop='0';
     const b=document.createElement('button'); b.className='ai-chip ai-email-chip'; b.type='button';
-    b.textContent='✉ Open the email form';
-    b.addEventListener('click', ()=>{ aiCloseFn(); openContactForm(); });
+    b.textContent='✉ Email Yashwanth';
+    b.addEventListener('click', ()=>{ location.href='mailto:yashwanthgangur@gmail.com'; });
     wrap.appendChild(b); aiBody.appendChild(wrap);
     requestAnimationFrame(()=>{ aiBody.scrollTop = aiBody.scrollHeight; });
   }
