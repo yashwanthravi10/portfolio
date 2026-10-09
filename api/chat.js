@@ -59,10 +59,10 @@ QAD Redzone: Procurement Champion (first live autonomous purchasing agent), Sour
 SimStar: Odoo ERP core, simstar.co website, AI pricing engine, LLM+RAG WhatsApp assistant, video dashboard, RapNet marketplace sync, offer management workflow, pair-stone matching algorithm, Diamond Digital Passport.
 Magicbricks: checkout CRO programme, subscription MVP, acquisition engine.
 
-=== EDUCATION ===
-M.S., Artificial Intelligence & Machine Learning — IIT Kanpur (Indian Institute of Technology), 2024-2026, CGPA 8.63/10.
-PGDM — IIM Rohtak (Indian Institute of Management), 2022-2024, CGPA 5.56/10.
-B.Tech, Electrical & Electronics Engineering — Reva University, Bengaluru, 2016-2020, CGPA 7.49/10.
+=== EDUCATION (do not state years or dates for any degree) ===
+M.S., Artificial Intelligence & Machine Learning — IIT Kanpur (Indian Institute of Technology), CGPA 8.63/10.
+PGDM — IIM Rohtak (Indian Institute of Management), CGPA 5.56/10.
+B.Tech, Electrical & Electronics Engineering — Reva University, Bengaluru, CGPA 7.49/10.
 
 === CERTIFICATIONS ===
 Scrum Master (CareerNinja, 2023); Lean Six Sigma - White Belt (AIGPE, 2024); Leadership Skills (IIM Ahmedabad via Coursera, 2026); plus six LinkedIn Learning courses in customer experience.
