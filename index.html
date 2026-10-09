@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -13,16 +13,16 @@
   /* Operating envelope: instrument vernacular — cool paper, petrol ink,
      one signal green that means "authorised to act". */
   :root {
-    --ink: #ECEEEA;          /* paper */
+    --ink: #EFF1F3;          /* porcelain */
     --surface: #FFFFFF;
-    --surface-2: #F5F6F2;
-    --line: #D4D9D3;
-    --line-strong: #B6BEB7;
-    --text: #0F1E26;         /* deep petrol, a real hue */
-    --muted: #4E5F68;
-    --muted-2: #7D8C93;
-    --accent: #0B6E4F;       /* engaged */
-    --accent-dim: #0E8A63;
+    --surface-2: #F6F8F9;
+    --line: #D8DDE2;
+    --line-strong: #B6BFC8;
+    --text: #0F2A47;         /* deep ink blue */
+    --muted: #4A5D73;
+    --muted-2: #5A6B80;      /* 4.8:1 on porcelain */
+    --accent: #1D4ED8;
+    --accent-dim: #1738A8;
     --accent-ink: #FFFFFF;
     --caution: #9A5B06;      /* supervised / degraded */
     --radius: 10px;
@@ -30,18 +30,19 @@
     --maxw: 1180px;
     --ease: cubic-bezier(.2,.7,.2,1);
   }
+  /* Companion dark: the same ink blue, inverted. */
   [data-theme="dark"] {
-    --ink: #0A1419;
-    --surface: #0F1F27;
-    --surface-2: #14272F;
-    --line: #1E333C;
-    --line-strong: #2C4854;
-    --text: #E7EDEA;
-    --muted: #9BB0B7;
-    --muted-2: #6E868F;
-    --accent: #3DD68C;
-    --accent-dim: #2FB876;
-    --accent-ink: #06161A;
+    --ink: #0B1724;
+    --surface: #122234;
+    --surface-2: #17293D;
+    --line: #22364D;
+    --line-strong: #324B68;
+    --text: #E9EFF6;
+    --muted: #9DB2C8;
+    --muted-2: #7488A0;
+    --accent: #6AA5FF;
+    --accent-dim: #4C8AE8;
+    --accent-ink: #06111C;
     --caution: #D9A441;
   }
 
