@@ -797,6 +797,34 @@
   .cform.is-closed { opacity: .5; }
   .cform.is-closed input, .cform.is-closed textarea, .cform.is-closed button { cursor: not-allowed; }
 
+
+  /* ---------- PSPO I credential ---------- */
+  .cred-chip { display: inline-flex; align-items: center; gap: 9px; margin: 2px 0 20px;
+    padding: 7px 13px 7px 8px; border: 1px solid var(--line); border-radius: 999px;
+    background: var(--surface); text-decoration: none; transition: border-color .2s, transform .2s; }
+  .cred-chip:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .cred-chip img { width: 26px; height: 26px; display: block; flex: none; }
+  .cred-chip b { font-size: 13.5px; font-weight: 600; color: var(--text); letter-spacing: -.005em; }
+  .cred-chip span { font-size: 12.5px; color: var(--muted-2); }
+
+  .cert-lead { display: grid; grid-template-columns: auto 1fr; gap: 26px; align-items: start;
+    background: var(--surface); border: 1px solid var(--line); border-left: 2px solid var(--accent);
+    border-radius: var(--radius); padding: 28px 30px; margin-bottom: 18px; }
+  .cert-lead img { width: 104px; height: 104px; display: block; }
+  .cert-lead h3 { font-family:'IBM Plex Sans Condensed','IBM Plex Sans',system-ui,sans-serif;
+    font-weight: 700; font-size: clamp(21px,2.4vw,27px); letter-spacing: -.015em; line-height: 1.1; }
+  .cert-lead .issuer { color: var(--muted); font-size: 14px; margin-top: 5px; }
+  .cert-lead p { color: var(--muted); font-size: 15px; line-height: 1.7; margin: 14px 0 0; max-width: 64ch; }
+  .cert-lead-foot { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 18px; }
+  .cert-lead-foot .cta-btn { padding: 9px 15px; font-size: 13.5px; }
+  .cert-lead-skills { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px; }
+  .cert-lead-skills span { font-size: 12.5px; color: var(--muted); border: 1px solid var(--line);
+    border-radius: 999px; padding: 5px 11px; }
+  @media (max-width: 760px) {
+    .cert-lead { grid-template-columns: 1fr; gap: 18px; padding: 22px 20px; }
+    .cert-lead img { width: 84px; height: 84px; }
+  }
+
   /* ---------- polish ---------- */
   /* reading progress — also tells you how long a section is */
   .progress { position: fixed; top: 0; left: 0; height: 2px; width: 0%; z-index: 120;
@@ -945,6 +973,11 @@
         <div class="hero-role">
           Staff Product Manager, Applied AI at QAD Redzone. Bengaluru, India.
         </div>
+        <a class="cred-chip" href="https://scrum.org/certificates/1361140" target="_blank" rel="noopener"
+           title="Verify this certification on Scrum.org">
+          <img src="assets/pspo1-badge.webp" alt="" width="26" height="26" decoding="async" />
+          <b>PSPO I Certified</b><span>Scrum.org</span>
+        </a>
         <p class="hero-desc">
           I work on autonomous agents that act inside enterprise systems — and on the harder question of
           when software should be trusted to act without a person watching.
@@ -1609,13 +1642,15 @@
     </div>
     <div class="skills-grid">
       <div class="skill-cat reveal">
-        <div class="ch"><h3>Product &amp; Growth</h3><span class="cnt">12</span></div>
+        <div class="ch"><h3>Product &amp; Growth</h3><span class="cnt">16</span></div>
         <div class="skill-tags">
           <span>Product strategy &amp; roadmap</span><span>Customer acquisition (SEM/PPC, SEO)</span>
           <span>A/B &amp; multivariate testing</span><span>Landing-page &amp; checkout CRO</span>
           <span>Unit economics (CAC · LTV · CVR · ROAS)</span><span>0→1 &amp; MVP development</span>
           <span>RICE / ICE / WSJF prioritisation</span><span>Funnel &amp; cohort analytics</span>
           <span>Agentic AI product strategy</span><span>Enterprise B2B discovery</span>
+          <span>Product vision &amp; strategy</span><span>Product Backlog management</span>
+          <span>Forecasting &amp; release planning</span><span>Product value &amp; ROI</span>
           <span>Platform &amp; API productisation</span><span>Build / buy / integrate strategy</span>
         </div>
       </div>
@@ -1632,12 +1667,14 @@
         </div>
       </div>
       <div class="skill-cat reveal">
-        <div class="ch"><h3>Leadership &amp; Delivery</h3><span class="cnt">10</span></div>
+        <div class="ch"><h3>Leadership &amp; Delivery</h3><span class="cnt">13</span></div>
         <div class="skill-tags">
           <span>Cross-functional leadership</span><span>Stakeholder management</span>
           <span>Managing competing priorities</span><span>Agile / Scrum / Kanban</span>
           <span>Vendor &amp; team management</span><span>Roadmap comms to C-suite</span>
           <span>Influence without authority</span><span>Distributed / global teams</span>
+          <span>Scrum product ownership (PSPO&nbsp;I)</span><span>Empiricism &amp; evidence-based delivery</span>
+          <span>Self-managing teams</span>
           <span>VP &amp; exec stakeholder alignment</span><span>Technical decision facilitation</span>
         </div>
       </div>
@@ -1734,6 +1771,32 @@
     <div class="sec-head reveal">
       <span class="eyebrow">Certifications</span>
       <h2 class="sec-title">Certified<br/><span class="thin">&amp; Verified</span></h2>
+    </div>
+
+    <div class="cert-lead reveal">
+      <img src="assets/pspo1-badge.webp" alt="Professional Scrum Product Owner I badge"
+           width="104" height="104" loading="lazy" decoding="async" />
+      <div>
+        <h3>Professional Scrum Product Owner&nbsp;I</h3>
+        <div class="issuer">Scrum.org &middot; issued November&nbsp;2026 &middot; does not expire</div>
+        <p>
+          A globally recognised certification demonstrating a fundamental level of Professional Scrum
+          Product Ownership: an intermediate understanding of the Scrum framework and how to apply it to
+          maximise the value a product delivers, including how to maximise return on investment and
+          optimise a product&rsquo;s total cost of ownership.
+        </p>
+        <div class="cert-lead-skills">
+          <span>Product vision</span><span>Product value &amp; ROI</span>
+          <span>Product Backlog management</span><span>Forecasting &amp; release planning</span>
+          <span>Stakeholders &amp; customers</span><span>Business strategy</span>
+          <span>Empiricism</span><span>Self-managing teams</span>
+        </div>
+        <div class="cert-lead-foot">
+          <a class="cta-btn" href="https://scrum.org/certificates/1361140" target="_blank" rel="noopener">Verify on Scrum.org</a>
+          <a class="cta-btn cta-ghost" href="https://www.credly.com/badges/15913502-aaa3-45de-947f-5404cd80301f" target="_blank" rel="noopener">View badge on Credly</a>
+          <span class="mono" style="color:var(--muted-2);font-size:12.5px">Credential ID &middot; 1361140</span>
+        </div>
+      </div>
     </div>
 
     <div class="cert-featured">
@@ -2399,7 +2462,8 @@
     { keys:['ai','machine learning','ml ','artificial intelligence','models','model','metrics','precision','recall','f1','evaluation','a.i'], a:"AI is his differentiator. He's shipped <b>two production AI systems</b> and is completing an <b>M.S. in AI &amp; ML at IIT Kanpur</b>. He works across classical ML and LLMs/RAG, and evaluates rigorously with metrics like MAPE, precision, recall, F1, deflection and answer-correctness. The <b>AI/ML</b> tab explains each metric with its formula." },
     { keys:['ms','master','iit','kanpur','msc','post graduate','higher studies','ai degree'], a:"He's doing an <b>M.S. in Artificial Intelligence &amp; Machine Learning at IIT Kanpur</b> (CGPA 8.63/10), focused on applied ML, LLMs and model evaluation. It lets him be a genuine technical partner to engineers — designing evals, questioning metrics, and making build/buy decisions." },
     { keys:['education','study','studied','degree','college','university','academics','iim','rohtak','reva','pgdm','btech','b.tech','cgpa','qualification'], a:"Education: <b>M.S. AI &amp; ML — IIT Kanpur (Indian Institute of Technology)</b>, CGPA 8.63; <b>PGDM — IIM Rohtak (Indian Institute of Management)</b>, CGPA 5.56; <b>B.Tech EEE — Reva University, Bengaluru</b>, CGPA 7.49. See the <b>Education</b> tab." },
-    { keys:['certification','certificate','certs','scrum','six sigma','lean','leadership','coursera','credential'], a:"Certifications: <b>Scrum Master</b> (CareerNinja, 2023), <b>Lean Six Sigma — White Belt</b> (AIGPE, 2024), and <b>Leadership Skills</b> (IIM Ahmedabad via Coursera, 2026), plus six LinkedIn Learning courses in customer experience. They're all in the <b>Certifications</b> tab." },
+    { keys:['pspo','pspo1','pspo i','product owner certification','scrum product owner','professional scrum'], a:"Yes — Yashwanth is a <b>Professional Scrum Product Owner I (PSPO I)</b>, certified by <b>Scrum.org</b> in November 2026. It covers the Scrum framework, product vision and value, Product Backlog management, forecasting and release planning, stakeholders and business strategy, and maximising ROI while optimising a product's total cost of ownership. <a href='https://scrum.org/certificates/1361140' target='_blank' rel='noopener'>Verify the credential</a>." },
+    { keys:['certification','certificate','certs','scrum','pspo','pspo1','product owner','six sigma','lean','leadership','coursera','credential'], a:"Certifications: <b>Professional Scrum Product Owner I (PSPO I)</b> — Scrum.org, Nov 2026, <a href='https://scrum.org/certificates/1361140' target='_blank' rel='noopener'>verify here</a>; <b>Scrum Master</b> (CareerNinja, 2023), <b>Lean Six Sigma — White Belt</b> (AIGPE, 2024), and <b>Leadership Skills</b> (IIM Ahmedabad via Coursera, 2026), plus six LinkedIn Learning courses in customer experience. They're all in the <b>Certifications</b> tab." },
     { keys:['ssb','army','defence','defense','coast guard','military','air 1','rank','officer','soldier'], a:"This one's special: Yashwanth was <b>recommended for the Indian Armed Forces three times</b> through the SSB (Services Selection Board) — <b>All-India Rank 1</b> for the Indian Army (Technical), recommended again at AIR 17, and <b>AIR 3</b> for the Indian Coast Guard. The SSB is a famously tough 5-day officer-selection assessing 15 Officer-Like Qualities. There's even a YouTube interview in the <b>Beyond Work</b> tab." },
     { keys:['football','soccer','sport','sports','ksfa','spartans','athlete','play','games'], a:"He's a competitive footballer ⚽ — represented <b>national level in Class 10</b>, played <b>KSFA (Karnataka State Football Association)</b> divisions A–D and private leagues like TAL and NBL, for clubs including Spartans FC, Bangalore City FC, and Football Academy of Bangalore. More in the <b>Beyond Work</b> tab." },
     { keys:['red cross','redcross','volunteer','covid','social service','community','charity','ngo'], a:"Yashwanth volunteers with the <b>Indian Red Cross Youth Wing</b> and served as a <b>COVID warrior</b>, supporting on-ground relief and community service. It's part of what he shares in the <b>Beyond Work</b> tab." },
